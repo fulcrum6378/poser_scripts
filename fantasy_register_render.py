@@ -4,9 +4,12 @@ import subprocess
 from typing import List
 from datetime import datetime
 
+import poser
+
 import quick_yaml
 
-RENDER_CACHE_1 = os.environ['USERPROFILE'] + '\\Desktop'
+DESKTOP = os.environ['USERPROFILE'] + '\\Desktop'
+RENDER_CACHE_1 = DESKTOP
 RENDER_CACHE_2 = '\\\\EDDIE\\Renders'
 
 scene_path = poser.Scene().DocumentPath()
@@ -81,15 +84,26 @@ if continuum:
         from fantasy_extract_poses import get_pose_dir
         from fantasy_extract_poses_pz3 import extract_all
 
-        extract_all(scene_path, get_pose_dir(album_id, album_name), album_id, render_id)
+        pose_dir = get_pose_dir(album_id, album_name)
+        characters = extract_all(scene_path, pose_dir, album_id, render_id)
+
+        # create reminding shortcuts for every pose in the desktop
+        for char in characters:
+            command = rf'''
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut("{DESKTOP}\{export_name} ({char}).pz2.lnk")
+$shortcut.TargetPath = "{pose_dir}\{export_name} ({char}).pz2"
+$shortcut.Save()
+            '''
+            subprocess.run(["powershell.exe", "-NoProfile", "-Command", command], text=True)
 
     # create a reminding shortcut for cropping special thumbnails for the extracted poses
     command = rf'''
 $shell = New-Object -ComObject WScript.Shell
-$shortcut = $shell.CreateShortcut("C:\Users\Mahdi\Desktop\{export_name}.lnk")
-$shortcut.TargetPath = "C:\Program Files\Adobe\Adobe Photoshop CS6 (64 Bit)\Photoshop.exe"
+$shortcut = $shell.CreateShortcut("{DESKTOP}\{export_name}.lnk")
+$shortcut.TargetPath = "%ProgramFiles%\Adobe\Adobe Photoshop CS6 (64 Bit)\Photoshop.exe"
 $shortcut.Arguments = "R:\Fantasy Renders\{export_name}.png"
-$shortcut.WorkingDirectory = "C:\Users\Mahdi\Desktop"
+$shortcut.WorkingDirectory = "{DESKTOP}"
 $shortcut.IconLocation = "%ProgramFiles%\Adobe\Adobe Photoshop CS6 (64 Bit)\Photoshop.exe,36"
 $shortcut.Save()
     '''

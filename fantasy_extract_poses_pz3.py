@@ -1,5 +1,7 @@
 import os
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+
+import poser
 
 from pose_extractor import actors, expressions, jaw_dropper
 
@@ -14,7 +16,7 @@ CHARACTERS: Dict[str, str] = {
 morph_forms: Dict[str, float] = {}
 
 
-def extract_all(pz3_path: str, pose_dir: str, album_id: str, render_id: str) -> int:
+def extract_all(pz3_path: str, pose_dir: str, album_id: str, render_id: str) -> List[str]:
     global pz3, morph_forms, min_actor_cur, max_actor_cur
     if not os.path.isdir(pose_dir):
         os.mkdir(pose_dir)
@@ -34,7 +36,7 @@ def extract_all(pz3_path: str, pose_dir: str, album_id: str, render_id: str) -> 
         figures[figure_name] = figure_id
 
     # extract poses
-    i = 0
+    chars: List[str] = []
     for figure_name, figure_id in figures.items():
         if figure_name not in CHARACTERS: continue
         pz2 = '{\n\nversion\n	{\n	number 14\n	}\n'
@@ -71,8 +73,8 @@ def extract_all(pz3_path: str, pose_dir: str, album_id: str, render_id: str) -> 
             raise FileExistsError('Please be careful!')
         open(pz2_path, 'w', encoding='cp1252', newline='\n').write(pz2)
         morph_forms.clear()
-        i += 1
-    return i
+        chars.append(CHARACTERS[figure_name])
+    return chars
 
 
 def extract_parameter(parm: str, resolve_value_ops: bool) -> str:
@@ -189,7 +191,7 @@ if __name__ == '__main__':
                 render_id += 1
         render_id = f'{render_id:03d}'
 
-    num_poses = extract_all(pz3_path, pose_dir, album_id, render_id)
+    num_poses = len(extract_all(pz3_path, pose_dir, album_id, render_id))
     if num_poses > 0:
         poser.DialogSimple.MessageBox(f'{num_poses} poses were extracted.')
     else:

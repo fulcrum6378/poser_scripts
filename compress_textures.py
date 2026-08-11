@@ -28,7 +28,7 @@ if continuum:
                 with open(rules_path, 'r') as rules_file:
                     for line in rules_file:
                         rule = line.strip()
-                        if len(rule) > 0:
+                        if len(rule) > 0 and not rule.startswith('#'):
                             spl = rule.rsplit(' ', 1)
                             rules[spl[0]] = float(spl[1])
                 if len(rules) == 0:
@@ -81,9 +81,19 @@ if continuum:
                 if dest in compress_files:
                     factor = compress_files[dest]
                     with Image.open(orig) as img:
-                        img.resize((int(img.width * factor), int(img.height * factor)), Image.LANCZOS) \
-                            .save(dest, quality=100, optimize=True)
-                    compressed_count += 1
+                        do_resize = True
+                        desired_scale = (int(img.width * factor), int(img.height * factor))
+                        if os.path.isfile(dest):
+                            try:
+                                with Image.open(dest) as old_img:
+                                    if (old_img.width, old_img.height) == desired_scale:
+                                        do_resize = False
+                            except:
+                                pass
+                        if do_resize:
+                            img.resize(desired_scale, Image.LANCZOS) \
+                                .save(dest, quality=100, optimize=True)
+                        compressed_count += 1
                 elif not os.path.isfile(dest) or os.path.getsize(orig) != os.path.getsize(dest):
                     shutil.copy2(orig, dest)
                     copied_count += 1

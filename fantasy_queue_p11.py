@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from collect_required_content import collect_pz3_required_paths
+from collect_required_content import collect_pz3_required_paths, copy_to
 from fantasy_extract_poses_pz3 import CHARACTERS
 
 scene = poser.Scene()
@@ -81,8 +81,8 @@ if continuum:
         pmd_path = pz3_path.replace('.pz3', '.pmd')
         if os.path.isfile(pmd_path):
             shutil.copy2(pmd_path, destination.replace('.pz3', '.pmd'))
-        poser.DialogSimple.MessageBox('Ready to render in Poser 11...')
 
-    # write required content
-    destination = '\\\\EDDIE\\Content\\'
-    collect_pz3_required_paths()
+        # write required content
+        copy_to('\\\\EDDIE\\Content\\', collect_pz3_required_paths(scene.DocumentPath())[0])
+
+        poser.DialogSimple.MessageBox('Ready to render in Poser 11...')

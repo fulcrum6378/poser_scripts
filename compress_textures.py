@@ -2,6 +2,7 @@ import os
 import shutil
 from typing import Dict, Set
 
+import poser
 from PIL import Image
 
 from collect_required_content import collect_pz3_required_paths
@@ -12,8 +13,7 @@ rules_path = scene.DocumentPath()[:-4] + '.txt'
 rules: Dict[str, float] = {}
 continuum = True
 
-if scene.Changed() == 1 and not poser.DialogSimple.YesNo(
-        'The scene has unsaved progress. Do you want to continue?'):
+if scene.Changed() == 1 and not poser.DialogSimple.YesNo('Unsaved document. Continue?'):
     continuum = False
 
 if continuum:
@@ -29,7 +29,7 @@ if continuum:
                     for line in rules_file:
                         rule = line.strip()
                         if len(rule) > 0:
-                            spl = rule.split(' ')
+                            spl = rule.rsplit(' ', 1)
                             rules[spl[0]] = float(spl[1])
                 if len(rules) == 0:
                     poser.DialogSimple.MessageBox(f'{os.path.basename(rules_path)} is empty.')
@@ -39,9 +39,12 @@ if continuum:
                 continuum = False
 
 if continuum:
-    required_paths: Set[str] = collect_pz3_required_paths()[0]
+    required_paths: Set[str] = collect_pz3_required_paths(scene.DocumentPath())[0]
 
     if not revert:
+        compressed_count = 0
+        copied_count = 0
+
         #
         # list files to be compressed
         compress_files: Dict[str, float] = {}
@@ -50,7 +53,10 @@ if continuum:
             if not fpl.endswith('.jpg') and not fpl.endswith('.png'): continue
             for pattern, compression in rules.items():
                 if pattern in file:
-                    compress_files[file] = compression
+                    if compression < 1.0:
+                        compress_files[file] = compression
+                    elif file in compress_files:
+                        compress_files.pop(file)
 
         # exclude directories which include those files
         compress_dirs: Set[str] = set()
@@ -77,9 +83,19 @@ if continuum:
                     with Image.open(orig) as img:
                         img.resize((int(img.width * factor), int(img.height * factor)), Image.LANCZOS) \
                             .save(dest, quality=100, optimize=True)
+                    compressed_count += 1
                 elif not os.path.isfile(dest) or os.path.getsize(orig) != os.path.getsize(dest):
                     shutil.copy2(orig, dest)
+                    copied_count += 1
+
+        # report
+        poser.DialogSimple.MessageBox(
+            f'{compressed_count} files were compressed.\n'
+            f'{copied_count} files were merely copied.')
+
     else:
+        reverted_count = 0
+
         # index texture directories
         texture_dirs: Set[str] = set()
         for file in required_paths:
@@ -91,3 +107,8 @@ if continuum:
             if os.path.isdir(original_dir):
                 shutil.rmtree(texture_dir)
                 os.rename(original_dir, texture_dir)
+                reverted_count += 1
+
+        # report
+        poser.DialogSimple.MessageBox(
+            f'{reverted_count} directories were reverted.')

@@ -1,6 +1,8 @@
 import os
 import shutil
 
+import poser
+
 from collect_required_content import collect_pz3_required_paths, copy_to
 from fantasy_extract_poses_pz3 import CHARACTERS
 
@@ -17,6 +19,9 @@ for figure in scene.Figures():
 continuum = len(errors) == 0
 if not continuum:
     continuum = poser.DialogSimple.YesNo(errors + 'Do you want to continue?') == 1
+
+if continuum and scene.Changed() == 1 and not poser.DialogSimple.YesNo('Unsaved document. Continue?'):
+    continuum = False
 
 if continuum:
     errors = ''

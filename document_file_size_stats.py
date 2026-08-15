@@ -1,15 +1,22 @@
+import gzip
 from typing import Dict, Optional, Tuple
 
 import poser
 
-MAX_RANK = 3
-MIN_SIZE = 2000
-
-pz3: str = open(poser.Scene().DocumentPath(), 'r', encoding='cp1252').read()
+pz3_path = poser.Scene().DocumentPath()
+pz3: str
+try:
+    pz3 = open(pz3_path, 'r', encoding='cp1252').read()
+except UnicodeDecodeError:
+    pz3 = gzip.open(pz3_path, 'rb').read().decode()
 total: int = len(pz3)
 
+MAX_RANK = 3
+MIN_SIZE = total / 1000
 
-def collect_objects(rank: int, min_par: int, max_par: int) -> Dict[str, Tuple[int, Optional[dict]]]:
+
+def collect_objects(rank: int, min_par: int, max_par: int
+                    ) -> Optional[Dict[str, Tuple[int, Optional[dict]]]]:
     global pz3
     cur = min_par
     indent = '	' * rank
@@ -35,6 +42,10 @@ def collect_objects(rank: int, min_par: int, max_par: int) -> Dict[str, Tuple[in
 
         if rank <= MAX_RANK and total_ >= MIN_SIZE:
             res_[title_] = (total_, collect_objects(rank + 1, min_obj, max_obj))
+        else:
+            if 'OTHERS' not in res_:
+                res_['OTHERS'] = (0, None)
+            res_['OTHERS'] = (res_['OTHERS'][0] + total_), res_['OTHERS'][1]
 
     return res_ if len(res_) > 1 else None
 

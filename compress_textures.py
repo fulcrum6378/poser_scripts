@@ -94,6 +94,8 @@ if continuum:
                             img.resize(desired_scale, Image.LANCZOS) \
                                 .save(dest, quality=100, optimize=True)
                         compressed_count += 1
+                elif os.path.isdir(orig):
+                    if not os.path.isdir(dest): shutil.copytree(orig, dest)
                 elif not os.path.isfile(dest) or os.path.getsize(orig) != os.path.getsize(dest):
                     shutil.copy2(orig, dest)
                     copied_count += 1

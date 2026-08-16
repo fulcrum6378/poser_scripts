@@ -10,7 +10,7 @@ import quick_yaml
 
 DESKTOP = os.environ['USERPROFILE'] + '\\Desktop'
 RENDER_CACHE_1 = DESKTOP
-RENDER_CACHE_2 = '\\\\EDDIE\\Renders'
+RENDER_CACHE_2 = '\\\\NERA\\Renders'
 
 scene_path = poser.Scene().DocumentPath()
 album_path = os.path.dirname(scene_path)

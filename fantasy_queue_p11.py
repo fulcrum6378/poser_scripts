@@ -67,9 +67,9 @@ if continuum:
     pz3 = pz3[:cur] + '		advancedSamplingControls 0\n' + pz3[cur:]
 
     # check if the destination directory exists
-    destination = '\\\\EDDIE\\Scenes\\'
+    destination = '\\\\NERA\\Scenes\\'
     if not os.path.isdir(destination):
-        if poser.DialogSimple.YesNo('Eddie is unavailable. Save in Desktop?') == 1:
+        if poser.DialogSimple.YesNo('Nera is unavailable. Save in Desktop?') == 1:
             destination = os.environ['USERPROFILE'] + '\\Desktop\\'
         else:
             continuum = False
@@ -88,6 +88,6 @@ if continuum:
             shutil.copy2(pmd_path, destination.replace('.pz3', '.pmd'))
 
         # write required content
-        copy_to('\\\\EDDIE\\Content\\', collect_pz3_required_paths(scene.DocumentPath())[0])
+        copy_to('\\\\NERA\\Content\\', collect_pz3_required_paths(scene.DocumentPath())[0])
 
         poser.DialogSimple.MessageBox('Ready to render in Poser 11...')

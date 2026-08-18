@@ -1,5 +1,7 @@
 import os
 
+import poser
+
 if 'INNOVATION' not in os.listdir(os.environ['USERPROFILE'] + '\\Desktop'):
     for actor in poser.Scene().CurrentFigure().Actors():
         for param in actor.Parameters():

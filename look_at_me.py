@@ -1,3 +1,5 @@
+import poser
+
 def normalise_rotation(r: float) -> float:
     while r > 180.0 or r < -180.0:
         if r > 0.0: r -= 360.0

@@ -1,3 +1,5 @@
+import poser
+
 scene = poser.Scene()
 figure = scene.CurrentFigure()
 

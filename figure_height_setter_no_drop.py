@@ -1,3 +1,5 @@
+import poser
+
 # get and analyse figure
 figure = poser.Scene().CurrentFigure()
 figure_obj, figure_supported = figure.GeomFileName().split('\\')[-1], True

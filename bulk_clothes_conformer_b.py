@@ -1,5 +1,7 @@
 import os
 
+import poser
+
 tmp_path = os.path.join(os.environ['TEMP'], 'buld_clothes_conformer.txt')
 if os.path.isfile(tmp_path):
     scene = poser.Scene()

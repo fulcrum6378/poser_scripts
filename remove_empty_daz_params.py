@@ -1,3 +1,5 @@
+import poser
+
 morphs_removed, parms_removed = 0, 0
 for actor in poser.Scene().CurrentFigure().Actors():
     removed = ''

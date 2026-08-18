@@ -1,5 +1,7 @@
 import os
 
+import poser
+
 versions = {
     'Christie': 1,
     'Espinela': 2,

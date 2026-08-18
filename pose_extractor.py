@@ -1,6 +1,8 @@
 import poser
 from typing import Dict, List
 
+import poser
+
 CHARACTERS: Dict[str, str] = {
     'C': 'CHRISTIE',
     'E': 'ESPINELA',

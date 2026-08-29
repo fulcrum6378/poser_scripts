@@ -23,13 +23,6 @@ if not continuum:
 if continuum and scene.Changed() == 1 and not poser.DialogSimple.YesNo('Unsaved document. Continue?'):
     continuum = False
 
-if continuum:
-    errors = ''
-    for light in scene.Lights():
-        if light.LightType() == 3 and light.LightOn() == 0:
-            errors += f'{light.Name()} is off!\n'
-    continuum = len(errors) == 0 or poser.DialogSimple.YesNo(errors + 'Do you want to continue?') == 1
-
 pz3: str
 if continuum:
     def replace_parameter(parm_name: str, parm_value: str):

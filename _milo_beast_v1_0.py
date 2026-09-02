@@ -3,6 +3,9 @@ figure = poser.Scene().CurrentFigure()
 if figure.Name() != 'BEAST':
     figure.SetName('BEAST')
 
+    figure.SetSkinType(3)  # Poser Unimesh
+    figure.SetNumbSubdivRenderLevels(1)
+
     body = figure.Actor('BODY')
     body.CreateValueParameter('ErectGrow')
     body.CreateValueParameter('ErectRaise')

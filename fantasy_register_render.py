@@ -15,6 +15,8 @@ POWERSHELL = r'C:\Program Files\PowerShell\7\pwsh.exe'
 
 scene_path: str = poser.Scene().DocumentPath()
 album_path: str = os.path.dirname(scene_path)
+if os.path.basename(album_path) == 'Templates':
+    album_path = os.path.dirname(album_path)
 render_cache = RENDER_CACHE_2
 continuum: bool = os.path.basename(album_path)[2:4] == '. '
 

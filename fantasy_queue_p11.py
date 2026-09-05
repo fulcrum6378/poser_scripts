@@ -107,9 +107,11 @@ if continuum:
 
     # check if the destination directory exists
     destination = '\\\\NERA\\Scenes\\'
+    nera_offline = False
     if not os.path.isdir(destination):
         if poser.DialogSimple.YesNo('Nera is unavailable. Save in Desktop?') == 1:
             destination = os.environ['USERPROFILE'] + '\\Desktop\\'
+            nera_offline = True
         else:
             continuum = False
 
@@ -127,6 +129,7 @@ if continuum:
             shutil.copy2(pmd_path, destination.replace('.pz3', '.pmd'))
 
         # write required content
-        copy_to('\\\\NERA\\Content\\', collect_pz3_required_paths(scene.DocumentPath())[0])
+        if not nera_offline:
+            copy_to('\\\\NERA\\Content\\', collect_pz3_required_paths(scene.DocumentPath())[0])
 
         poser.DialogSimple.MessageBox('Ready to render in Poser 11...')

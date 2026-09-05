@@ -5,7 +5,7 @@ if figure.Name() != 'CHRISTIE':
 
     figure.SetSkinType(3)  # Poser Unimesh
 
-    # body = figure.Actor('BODY')
+    body = figure.Actor('BODY')
     # calling body.LoadMaterialCollection() here makes Poser crash!
 
 else:

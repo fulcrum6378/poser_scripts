@@ -38,6 +38,9 @@ if continuum:
     if have_laptop_render:
         if poser.DialogSimple.YesNo('Is it rendered in this device?') == 1:
             render_cache = RENDER_CACHE_1
+    if not os.path.isdir(render_cache):
+        poser.DialogSimple.MessageBox('Nera is unavailable.')
+        continuum = False
 
 # let the user choose a render from the render cache
 renders: List[str]

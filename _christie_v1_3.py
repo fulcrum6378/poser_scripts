@@ -4,6 +4,7 @@ if figure.Name() != 'CHRISTIE':
     figure.SetName('CHRISTIE')
 
     figure.SetSkinType(3)  # Poser Unimesh
+    figure.SetNumbSubdivRenderLevels(1)
 
     body = figure.Actor('BODY')
     # calling body.LoadMaterialCollection() here makes Poser crash!

@@ -20,7 +20,8 @@ manifest = quick_yaml.load(open(manifest_path, 'r').read())['Materials']
 
 for mat in figure.Materials():
     mat_name = mat.Name()
-    if mat_name != '7_Tear': continue  # TODO REMOVE
+    if mat_name not in ['1_Eyebrow', '5_Cornea', '5_Pupil', '7_EyeSurface', '7_Tear']:
+        continue  # TODO REMOVE
 
     tree = mat.ShaderTree()
     previous_nodes = tree.Nodes()
@@ -30,6 +31,10 @@ for mat in figure.Materials():
 
     phs.SetName('PhysicalSurface')
     phs.SetLocation(20, 20)
+    tree.SetRendererRootNode(poser.kRenderEngineCodeFIREFLY, phs)
+    if mat_name == '1_Eyebrow':  # in ['1_Eyebrow', '5_Cornea']:
+        phs.SetInputsCollapsed(True)
+        phs.SetPreviewVisible(True)
 
     # -------------------------Dependencies---------------------------
 
@@ -37,28 +42,33 @@ for mat in figure.Materials():
 
     # PhysicalSurface : Color
     in_color = phs.InputByInternalName('Color')
-    if mat_name not in ['1_Eyebrow']:
-        in_color.SetColor(1, 1, 1)
-    else:
+    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil']:
         in_color.SetColor(0, 0, 0)
+    else:
+        in_color.SetColor(1, 1, 1)
 
     # PhysicalSurface : Transparency
-    if mat_name in ['7_Tear']:
-        phs.InputByInternalName('Transparency').SetFloat(1)
+    in_transparency = phs.InputByInternalName('Transparency')
+    if mat_name in ['5_Cornea', '5_Lacrimal', '6_Eyelash', '7_EyeSurface', '7_Tear']:
+        in_transparency.SetFloat(1)
 
     # PhysicalSurface : Roughness
     phs.InputByInternalName('Roughness').SetFloat(0)
 
     # PhysicalSurface : Specular
-    if mat_name in ['7_Tear']:
+    if mat_name in ['7_EyeSurface']:
+        phs.InputByInternalName('Specular').SetColor(0.5, 0.5, 0.5)
+    elif mat_name in ['7_Tear']:
         phs.InputByInternalName('Specular').SetColor(1, 1, 1)
     else:
         phs.InputByInternalName('Specular').SetColor(0, 0, 0)
 
     # PhysicalSurface : Metallic
-    if mat_name in ['7_Tear']:
+    if mat_name in ['7_EyeSurface', '7_Tear']:
         in_metallic = phs.InputByInternalName('Metallic')
-        if mat_name == '7_Tear':
+        if mat_name == '7_EyeSurface':
+            in_metallic.SetFloat(0.04)
+        elif mat_name == '7_Tear':
             in_metallic.SetFloat(0.1)
 
     # PhysicalSurface : Emission
@@ -76,21 +86,51 @@ for mat in figure.Materials():
 
     # -------------------------Cycles-Shaders-------------------------
 
-    if mat_name in ['7_Tear']:
+    if mat_name in ['7_Tear', '7_EyeSurface']:
+        phs.SetInputsCollapsed(True)
         cyc = tree.CreateNode('CyclesSurface')
-        cyc.SetLocation(245, 20)
+        cyc.SetLocation(20, 110)
+        tree.SetRendererRootNode(poser.kRenderEngineCodeSUPERFLY, cyc)
 
-        if mat_name == '7_Tear':
+        if mat_name == '7_EyeSurface':
+            clo1 = tree.CreateNode('ccl_MixClosure')
+            clo1.SetLocation(20, 240)
+            clo1.OutputByInternalName('Closure').ConnectToInput(cyc.InputByInternalName('Surface'))
+
+            math = tree.CreateNode('ccl_Math')
+            math.SetLocation(245, 20)
+            math.InputByInternalName('Type').SetFloat(1)
+            math.OutputByInternalName('Value').ConnectToInput(clo1.InputByInternalName('Closure1'))
+
+            light_path = tree.CreateNode('ccl_LightPath')
+            light_path.SetLocation(470, 20)
+            light_path.OutputByInternalName('Is Shadow Ray').ConnectToInput(math.InputByInternalName('Value1'))
+            light_path.OutputByInternalName('Is Diffuse Ray').ConnectToInput(math.InputByInternalName('Value2'))
+
+            glass_bsdf = tree.CreateNode('ccl_GlassBsdf')
+            glass_bsdf.SetLocation(245, 165)
+            glass_bsdf.InputByInternalName('Color').SetColor(1, 1, 1)
+            glass_bsdf.InputByInternalName('Roughness').SetFloat(0.02)
+            glass_bsdf.InputByInternalName('IOR').SetFloat(1.376)
+            glass_bsdf.InputByInternalName('Distribution').SetFloat(2)
+            glass_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure1'))
+
+            transparent_bsdf = tree.CreateNode('ccl_TransparentBsdf')
+            transparent_bsdf.SetLocation(245, 310)
+            transparent_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure2'))
+
+
+        elif mat_name == '7_Tear':
             clo1 = tree.CreateNode('ccl_AddClosure')
-            clo1.SetLocation(245, 150)
+            clo1.SetLocation(20, 240)
             clo1.OutputByInternalName('Closure').ConnectToInput(cyc.InputByInternalName('Surface'))
 
             transparent_bsdf = tree.CreateNode('ccl_TransparentBsdf')
-            transparent_bsdf.SetLocation(245, 242)
+            transparent_bsdf.SetLocation(245, 232)
             transparent_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure1'))
 
             refraction_bsdf = tree.CreateNode('ccl_RefractionBsdf')
-            refraction_bsdf.SetLocation(245, 316)
+            refraction_bsdf.SetLocation(245, 306)
             refraction_bsdf.InputByInternalName('Color').SetColor(0.3, 0.3, 0.3)
             refraction_bsdf.InputByInternalName('IOR').SetFloat(1.33)
             refraction_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure2'))

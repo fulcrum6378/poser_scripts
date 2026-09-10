@@ -5,10 +5,11 @@ from typing import Any, Dict, Optional, Tuple
 import quick_yaml
 
 
-def material_name_convenience(mat_name):
+def convenience_material_name(mat_name):
     return {
         'EyeSocket': '1_EyeSocket',
         'Eyebrow': '1_Eyebrow',
+        'EyeBrow': '1_Eyebrow',
         'Lip': '1_Lip',
         'Nostril': '1_Nostril',
         'SkinFace': '1_SkinFace',
@@ -18,12 +19,14 @@ def material_name_convenience(mat_name):
         'SkinTorso': '2_SkinTorso',
         'SkinHip': '2_SkinHip',
         'Fingernail': '3_Fingernail',
+        'FingerNail': '3_Fingernail',
         'SkinArm': '3_SkinArm',
         'SkinFoot': '3_SkinFoot',
         'SkinForearm': '3_SkinForearm',
         'SkinHand': '3_SkinHand',
         'SkinLeg': '3_SkinLeg',
         'Toenail': '3_Toenail',
+        'ToeNail': '3_Toenail',
         'InnerMouth': '4_InnerMouth',
         'Gums': '4_Gums',
         'Teeth': '4_Teeth',
@@ -31,12 +34,29 @@ def material_name_convenience(mat_name):
         'Cornea': '5_Cornea',
         'Iris': '5_Iris',
         'Lacrimal': '5_Lacrimal',
+        'Lacrimals': '5_Lacrimal',
         'Pupil': '5_Pupil',
+        'Pupils': '5_Pupil',
         'Sclera': '5_Sclera',
         'Eyelash': '6_Eyelash',
+        'Eyelashes': '6_Eyelash',
         'EyeSurface': '7_EyeSurface',
         'Tear': '7_Tear',
     }[mat_name]
+
+
+def convenience_color(any_str: str) -> Tuple[float, float, float]:
+    try:
+        return float(any_str) / 255.0, float(any_str) / 255.0, float(any_str) / 255.0
+    except ValueError:
+        pass
+    if ', ' in any_str:
+        spl = any_str.split(', ')
+        return float(spl[0]) / 255.0, float(spl[1]) / 255.0, float(spl[2]) / 255.0
+    if any_str.startswith('#') or any_str.startswith('0x'):
+        any_str = any_str.replace('#', '').replace('0x', '')
+        return int(any_str[0:2], 16) / 255.0, int(any_str[2:4], 16) / 255.0, int(any_str[4:6], 16) / 255.0
+    return 0, 0, 0
 
 
 scene = poser.Scene()
@@ -137,6 +157,76 @@ for mat in figure.Materials():
             [0 if len(shader['OpacityTextures']) == 1 or 'OpacityTextureDefault' not in shader \
                 else (int(shader['OpacityTextureDefault']) - 1)]
 
+    # -----------------------PhysicalSurface--------------------------
+
+    # PhysicalSurface : Color
+    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Preview']:
+        color = (0, 0, 0)
+    else:
+        color = (1, 1, 1)
+        if shader is not None and 'Color' in shader:
+            if isinstance(shader['Color'], dict):
+                for easy_name, easy_color in shader['Color'].items():
+                    if easy_name.lower() == 'all' or convenience_material_name(easy_name) == mat_name:
+                        color = convenience_color(easy_color)
+            else:
+                color = convenience_color(shader['Color'])
+    phs.InputByInternalName('Color').SetColor(color[0], color[1], color[2])
+
+    # PhysicalSurface : Transparency
+    trans = 0
+    if mat_name in ['5_Cornea', '7_EyeSurface', '7_Tear', 'Preview'] or opacity_texture is not None:
+        trans = 1
+    phs.InputByInternalName('Transparency').SetFloat(trans)
+
+    # PhysicalSurface : Roughness
+    rough = 0
+    if shader is not None and 'Roughness' in shader:
+        if isinstance(shader['Roughness'], dict):
+            for easy_name, value in shader['Roughness'].items():
+                if easy_name.lower() == 'all' or convenience_material_name(easy_name) == mat_name:
+                    rough = float(value)
+        else:
+            rough = float(shader['Roughness'])
+    phs.InputByInternalName('Roughness').SetFloat(rough)
+
+    # PhysicalSurface : Specular
+    if mat_name in ['7_EyeSurface']:
+        spec = (0.5, 0.5, 0.5)
+    elif mat_name in ['7_Tear']:
+        spec = (1, 1, 1)
+    else:
+        spec = (0, 0, 0)
+        if shader is not None and 'Specular' in shader:
+            if isinstance(shader['Specular'], dict):
+                for easy_name, easy_color in shader['Specular'].items():
+                    if easy_name.lower() == 'all' or convenience_material_name(easy_name) == mat_name:
+                        spec = convenience_color(easy_color)
+            else:
+                spec = convenience_color(shader['Specular'])
+    phs.InputByInternalName('Specular').SetColor(spec[0], spec[1], spec[2])
+
+    # PhysicalSurface : Metallic
+    if mat_name in ['7_EyeSurface', '7_Tear']:
+        phs_metal = phs.InputByInternalName('Metallic')
+        if mat_name == '7_EyeSurface':
+            phs_metal.SetFloat(0.04)
+        elif mat_name == '7_Tear':
+            phs_metal.SetFloat(0.1)
+
+    # PhysicalSurface : Emission
+    phs.InputByInternalName('Emission').SetColor(0, 0, 0)
+
+    # PhysicalSurface : SSS
+    phs_sss_group = phs.InputByInternalName('Scatter_Group')
+    if mat_name in ['3_Fingernail', '3_Toenail']:
+        phs_sss_group.SetFloat(2)
+    elif mat_name in ['5_Cornea', '5_Sclera']:
+        phs_sss_group.SetFloat(3)
+    elif mat_name in ['4_Gums', '4_InnerMouth', '4_Teeth', '4_Tongue']:
+        phs_sss_group.SetFloat(4)
+    phs.InputByInternalName('SSSMethod').SetFloat(1)
+
     # -------------------------Dependencies---------------------------
 
     if diffuse_texture is not None:
@@ -155,56 +245,11 @@ for mat in figure.Materials():
         opa_map.SetLocation(node_row_2, node_column_2)
         opa_map.InputByInternalName('Image_Source').SetString(':Runtime:Texture:' + opacity_texture)
         opa_map.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Transparency'))
-        opa_map.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Specular'))
+        if spec != (0, 0, 0):
+            opa_map.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Specular'))
         opa_map.SetInputsCollapsed(True)
         opa_map.SetPreviewVisible(True)
         node_column_2 += 255
-
-    # -----------------------PhysicalSurface--------------------------
-
-    # PhysicalSurface : Color
-    in_color = phs.InputByInternalName('Color')
-    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Preview']:
-        in_color.SetColor(0, 0, 0)
-    else:
-        in_color.SetColor(1, 1, 1)
-
-    # PhysicalSurface : Transparency
-    in_transparency = phs.InputByInternalName('Transparency')
-    if mat_name in ['5_Cornea', '7_EyeSurface', '7_Tear', 'Preview'] or opacity_texture is not None:
-        in_transparency.SetFloat(1)
-
-    # PhysicalSurface : Roughness
-    phs.InputByInternalName('Roughness').SetFloat(0)
-
-    # PhysicalSurface : Specular
-    if mat_name in ['7_EyeSurface']:
-        phs.InputByInternalName('Specular').SetColor(0.5, 0.5, 0.5)
-    elif mat_name in ['7_Tear']:
-        phs.InputByInternalName('Specular').SetColor(1, 1, 1)
-    else:
-        phs.InputByInternalName('Specular').SetColor(0, 0, 0)
-
-    # PhysicalSurface : Metallic
-    if mat_name in ['7_EyeSurface', '7_Tear']:
-        in_metallic = phs.InputByInternalName('Metallic')
-        if mat_name == '7_EyeSurface':
-            in_metallic.SetFloat(0.04)
-        elif mat_name == '7_Tear':
-            in_metallic.SetFloat(0.1)
-
-    # PhysicalSurface : Emission
-    phs.InputByInternalName('Emission').SetColor(0, 0, 0)
-
-    # PhysicalSurface : SSS
-    in_sss_group = phs.InputByInternalName('Scatter_Group')
-    if mat_name in ['3_Fingernail', '3_Toenail']:
-        in_sss_group.SetFloat(2)
-    elif mat_name in ['5_Cornea', '5_Sclera']:
-        in_sss_group.SetFloat(3)
-    elif mat_name in ['4_Gums', '4_InnerMouth', '4_Teeth', '4_Tongue']:
-        in_sss_group.SetFloat(4)
-    phs.InputByInternalName('SSSMethod').SetFloat(1)
 
     # -------------------------Cycles-Shaders-------------------------
 

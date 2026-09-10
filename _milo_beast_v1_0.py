@@ -1,3 +1,5 @@
+import poser
+
 # this script is executed twice
 figure = poser.Scene().CurrentFigure()
 if figure.Name() != 'BEAST':

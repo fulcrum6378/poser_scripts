@@ -1,3 +1,5 @@
+import poser
+
 # this script is executed twice
 figure = poser.Scene().CurrentFigure()
 if figure.Name() != 'LUNA':
@@ -10,7 +12,7 @@ if figure.Name() != 'LUNA':
     body.CreateValueParameter('Muscular')
     body.CreateValueParameter('Giantess')
     body.CreateValueParameter('Svelte')
-    # calling body.LoadMaterialCollection() here makes Poser crash!
 
 else:
     poser.ExecFile('remove_empty_daz_params_silent.py')
+    poser.ExecFile('character_material_loader.py')

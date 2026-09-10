@@ -1,8 +1,43 @@
 import os
 import poser
-from typing import Optional
+from typing import Any, Dict, Optional, Tuple
 
 import quick_yaml
+
+
+def material_name_convenience(mat_name):
+    return {
+        'EyeSocket': '1_EyeSocket',
+        'Eyebrow': '1_Eyebrow',
+        'Lip': '1_Lip',
+        'Nostril': '1_Nostril',
+        'SkinFace': '1_SkinFace',
+        'Nipple': '2_Nipple',
+        'SkinHead': '2_SkinHead',
+        'SkinNeck': '2_SkinNeck',
+        'SkinTorso': '2_SkinTorso',
+        'SkinHip': '2_SkinHip',
+        'Fingernail': '3_Fingernail',
+        'SkinArm': '3_SkinArm',
+        'SkinFoot': '3_SkinFoot',
+        'SkinForearm': '3_SkinForearm',
+        'SkinHand': '3_SkinHand',
+        'SkinLeg': '3_SkinLeg',
+        'Toenail': '3_Toenail',
+        'InnerMouth': '4_InnerMouth',
+        'Gums': '4_Gums',
+        'Teeth': '4_Teeth',
+        'Tongue': '4_Tongue',
+        'Cornea': '5_Cornea',
+        'Iris': '5_Iris',
+        'Lacrimal': '5_Lacrimal',
+        'Pupil': '5_Pupil',
+        'Sclera': '5_Sclera',
+        'Eyelash': '6_Eyelash',
+        'EyeSurface': '7_EyeSurface',
+        'Tear': '7_Tear',
+    }[mat_name]
+
 
 scene = poser.Scene()
 figure = scene.CurrentFigure()
@@ -16,12 +51,12 @@ for dossier_file in os.listdir(dossier_dir).__reversed__():
         manifest_path = os.path.join(dossier_dir, dossier_file)
         break
 # noinspection PyTypeChecker
-manifest = quick_yaml.load(open(manifest_path, 'r').read())['Materials']
+manifest = quick_yaml.load(open(manifest_path, 'r').read())
 
 for mat in figure.Materials():
     mat_name = mat.Name()
-    if mat_name not in ['1_Eyebrow', '5_Cornea', '5_Pupil', '7_EyeSurface', '7_Tear']:
-        continue  # TODO REMOVE
+    # if mat_name not in ['2_SkinTorso']:
+    #    continue  # TODO REMOVE
 
     tree = mat.ShaderTree()
     previous_nodes = tree.Nodes()
@@ -29,27 +64,114 @@ for mat in figure.Materials():
     for previous_node in previous_nodes:
         tree.DeleteNode(previous_node)
 
+    node_row_1, node_row_2, node_row_3 = 20, 245, 470
+    node_column_1, node_column_2, node_column_3 = 20, 20, 20
+
     phs.SetName('PhysicalSurface')
-    phs.SetLocation(20, 20)
+    phs.SetLocation(node_row_1, node_column_1)
     tree.SetRendererRootNode(poser.kRenderEngineCodeFIREFLY, phs)
     if mat_name == '1_Eyebrow':  # in ['1_Eyebrow', '5_Cornea']:
         phs.SetInputsCollapsed(True)
         phs.SetPreviewVisible(True)
+    node_column_1 += 90
+
+    # ------------------------Parse-Manifest--------------------------
+
+    shader: Optional[Dict[str, Any]] = None
+    try:
+        shader = manifest['Shaders'][{
+            '1_EyeSocket': 'Face',
+            '1_Lip': 'Lips',
+            '1_Nostril': 'Face',
+            '1_SkinFace': 'Face',
+            '2_Nipple': 'Torso',
+            '2_SkinHead': 'Torso',
+            '2_SkinNeck': 'Torso',
+            '2_SkinTorso': 'Torso',
+            '2_SkinHip': 'Torso',
+            '3_Fingernail': 'Limbs',
+            '3_SkinArm': 'Limbs',
+            '3_SkinFoot': 'Limbs',
+            '3_SkinForearm': 'Limbs',
+            '3_SkinHand': 'Limbs',
+            '3_SkinLeg': 'Limbs',
+            '3_Toenail': 'Limbs',
+            '4_InnerMouth': 'Mouth',
+            '4_Gums': 'Mouth',
+            '4_Teeth': 'Mouth',
+            '4_Tongue': 'Mouth',
+            '5_Iris': 'Eyes',
+            '5_Lacrimal': 'Lacrimal',
+            '5_Sclera': 'Eyes',
+            '6_Eyelash': 'Eyelashes',
+        }[mat_name]]
+    except KeyError:
+        pass
+
+    if mat_name == '5_Lacrimal' and 'Eyes' in manifest['Shaders']:
+        # shader |= manifest['Shaders']['Eyes']  # Python 3.9
+        shader = {**shader, **manifest['Shaders']['Eyes']}
+
+    diffuse_texture: Optional[str] = None
+    color_math = None
+    diffuse_hue, diffuse_saturation, diffuse_brightness = None, None, None
+    hsv: Optional[Tuple] = None
+    if shader is not None and 'DiffuseTextures' in shader:
+        diffuse_texture = shader['DiffuseTextures'] \
+            [0 if len(shader['DiffuseTextures']) == 1 or 'DiffuseTextureDefault' not in shader \
+                else (int(shader['DiffuseTextureDefault']) - 1)]
+        if 'DiffuseHue' in shader:
+            diffuse_hue = shader['DiffuseHue']
+        if 'DiffuseSaturation' in shader:
+            diffuse_saturation = shader['DiffuseSaturation']
+        if 'DiffuseBrightness' in shader:
+            diffuse_brightness = shader['DiffuseBrightness']
+    if diffuse_hue is not None or diffuse_saturation is not None or diffuse_brightness is not None:
+        hsv = (diffuse_hue if diffuse_hue is not None else 0,
+               diffuse_saturation if diffuse_saturation is not None else 1,
+               diffuse_brightness if diffuse_brightness is not None else 1)
+
+    opacity_texture: Optional[str] = None
+    if shader is not None and 'OpacityTextures' in shader:
+        opacity_texture = shader['OpacityTextures'] \
+            [0 if len(shader['OpacityTextures']) == 1 or 'OpacityTextureDefault' not in shader \
+                else (int(shader['OpacityTextureDefault']) - 1)]
 
     # -------------------------Dependencies---------------------------
+
+    if diffuse_texture is not None:
+        dif_map = tree.CreateNode('image_map')
+        dif_map.SetName('ColorTexture')
+        dif_map.SetLocation(node_row_2, node_column_2)
+        dif_map.InputByInternalName('Image_Source').SetString(':Runtime:Texture:' + diffuse_texture)
+        dif_map.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Color'))
+        dif_map.SetInputsCollapsed(True)
+        dif_map.SetPreviewVisible(True)
+        node_column_2 += 255
+
+    if opacity_texture is not None:
+        opa_map = tree.CreateNode('image_map')
+        opa_map.SetName('OpacityTexture')
+        opa_map.SetLocation(node_row_2, node_column_2)
+        opa_map.InputByInternalName('Image_Source').SetString(':Runtime:Texture:' + opacity_texture)
+        opa_map.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Transparency'))
+        opa_map.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Specular'))
+        opa_map.SetInputsCollapsed(True)
+        opa_map.SetPreviewVisible(True)
+        node_column_2 += 255
 
     # -----------------------PhysicalSurface--------------------------
 
     # PhysicalSurface : Color
     in_color = phs.InputByInternalName('Color')
-    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil']:
+    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Preview']:
         in_color.SetColor(0, 0, 0)
     else:
         in_color.SetColor(1, 1, 1)
 
     # PhysicalSurface : Transparency
     in_transparency = phs.InputByInternalName('Transparency')
-    if mat_name in ['5_Cornea', '5_Lacrimal', '6_Eyelash', '7_EyeSurface', '7_Tear']:
+    if mat_name in ['5_Cornea', '7_EyeSurface', '7_Tear', 'Preview'] or opacity_texture is not None:
         in_transparency.SetFloat(1)
 
     # PhysicalSurface : Roughness
@@ -89,48 +211,53 @@ for mat in figure.Materials():
     if mat_name in ['7_Tear', '7_EyeSurface']:
         phs.SetInputsCollapsed(True)
         cyc = tree.CreateNode('CyclesSurface')
-        cyc.SetLocation(20, 110)
+        cyc.SetLocation(node_row_1, node_column_1)
         tree.SetRendererRootNode(poser.kRenderEngineCodeSUPERFLY, cyc)
+        node_column_1 += 130
 
         if mat_name == '7_EyeSurface':
             clo1 = tree.CreateNode('ccl_MixClosure')
-            clo1.SetLocation(20, 240)
+            clo1.SetLocation(node_row_1, node_column_1)
             clo1.OutputByInternalName('Closure').ConnectToInput(cyc.InputByInternalName('Surface'))
 
             math = tree.CreateNode('ccl_Math')
-            math.SetLocation(245, 20)
+            math.SetLocation(node_row_2, node_column_2)
             math.InputByInternalName('Type').SetFloat(1)
             math.OutputByInternalName('Value').ConnectToInput(clo1.InputByInternalName('Closure1'))
+            node_column_2 += 145
 
             light_path = tree.CreateNode('ccl_LightPath')
-            light_path.SetLocation(470, 20)
+            light_path.SetLocation(node_row_3, node_column_3)
             light_path.OutputByInternalName('Is Shadow Ray').ConnectToInput(math.InputByInternalName('Value1'))
             light_path.OutputByInternalName('Is Diffuse Ray').ConnectToInput(math.InputByInternalName('Value2'))
 
             glass_bsdf = tree.CreateNode('ccl_GlassBsdf')
-            glass_bsdf.SetLocation(245, 165)
+            glass_bsdf.SetLocation(node_row_2, node_column_2)
             glass_bsdf.InputByInternalName('Color').SetColor(1, 1, 1)
             glass_bsdf.InputByInternalName('Roughness').SetFloat(0.02)
             glass_bsdf.InputByInternalName('IOR').SetFloat(1.376)
             glass_bsdf.InputByInternalName('Distribution').SetFloat(2)
             glass_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure1'))
+            node_column_2 += 145
 
             transparent_bsdf = tree.CreateNode('ccl_TransparentBsdf')
-            transparent_bsdf.SetLocation(245, 310)
+            transparent_bsdf.SetLocation(node_row_2, node_column_2)
             transparent_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure2'))
 
 
         elif mat_name == '7_Tear':
             clo1 = tree.CreateNode('ccl_AddClosure')
-            clo1.SetLocation(20, 240)
+            clo1.SetLocation(node_row_1, node_column_1)
             clo1.OutputByInternalName('Closure').ConnectToInput(cyc.InputByInternalName('Surface'))
 
+            node_column_2 = 232
             transparent_bsdf = tree.CreateNode('ccl_TransparentBsdf')
-            transparent_bsdf.SetLocation(245, 232)
+            transparent_bsdf.SetLocation(node_row_2, node_column_2)
             transparent_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure1'))
+            node_column_2 += 74
 
             refraction_bsdf = tree.CreateNode('ccl_RefractionBsdf')
-            refraction_bsdf.SetLocation(245, 306)
+            refraction_bsdf.SetLocation(node_row_2, node_column_2)
             refraction_bsdf.InputByInternalName('Color').SetColor(0.3, 0.3, 0.3)
             refraction_bsdf.InputByInternalName('IOR').SetFloat(1.33)
             refraction_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure2'))

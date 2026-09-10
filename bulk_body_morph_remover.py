@@ -9,8 +9,11 @@ if text_entry.Show() == 1:
     for actor in poser.Scene().CurrentFigure().Actors():
         for parm in actor.Parameters():
             if (parm.InternalName().startswith('FBM') or parm.InternalName().startswith('PBM')) and \
-                    parm.InternalName() not in selection:
-                if parm.IsMorphTarget():
-                    actor.DeleteTarget(parm.Name())
-                else:
-                    actor.RemoveValueParameter(parm.Name())
+                    parm.InternalName() not in selection and parm.Value() == 0:
+                try:
+                    if parm.IsMorphTarget():
+                        actor.DeleteTarget(parm.Name())
+                    else:
+                        actor.RemoveValueParameter(parm.Name())
+                except:
+                    pass

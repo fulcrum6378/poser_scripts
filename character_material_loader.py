@@ -16,7 +16,7 @@ def convenience_is_same_material(easy_name: str, mat_name: str) -> bool:
 
 def convenience_color(any_str: str) -> Tuple[float, float, float]:
     try:
-        return float(any_str) / 255.0, float(any_str) / 255.0, float(any_str) / 255.0
+        return float(any_str), float(any_str), float(any_str)
     except ValueError:
         pass
     if ', ' in any_str:
@@ -32,6 +32,13 @@ def get_value_for_this_mat(user_input: Any, default: Any) -> Any:  # float | str
     global chosen_mode, mat_name
     if isinstance(user_input, dict):
         for easy_name, value in user_input.items():
+            if ', ' in easy_name:
+                for easier_name in easy_name.split(', '):
+                    if convenience_is_same_material(easier_name, mat_name):
+                        if isinstance(value, list):
+                            return value[chosen_mode]
+                        else:
+                            return value
             if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
                 if isinstance(value, list):
                     return value[chosen_mode]
@@ -45,11 +52,18 @@ def get_value_for_this_mat(user_input: Any, default: Any) -> Any:  # float | str
 
 
 def get_color_for_this_mat(user_input: Any, default: \
-        Tuple[float, float, float]) -> \
-        Tuple[float, float, float]:
+        Optional[Tuple[float, float, float]]) -> \
+        Optional[Tuple[float, float, float]]:
     global chosen_mode, mat_name
     if isinstance(user_input, dict):
         for easy_name, easy_color in user_input.items():
+            if ', ' in easy_name:
+                for easier_name in easy_name.split(', '):
+                    if convenience_is_same_material(easier_name, mat_name):
+                        if isinstance(easy_color, list):
+                            return convenience_color(easy_color[chosen_mode])
+                        else:
+                            return convenience_color(easy_color)
             if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
                 if isinstance(easy_color, list):
                     return convenience_color(easy_color[chosen_mode])
@@ -64,7 +78,10 @@ def get_color_for_this_mat(user_input: Any, default: \
 
 scene = poser.Scene()
 figure = scene.CurrentFigure()
-character = figure.Name().capitalize()
+figure_name = figure.Name()
+if figure_name == 'HORN': figure_name = 'MAHDI'
+if figure_name == 'BEAST': figure_name = 'MILO'
+character = figure_name.capitalize()
 dossier_dir = os.environ['ONEDRIVE'] + rf'\Projects\Characters\{character}\Dossier'
 if not os.path.isdir(dossier_dir):
     raise Exception('This character has no dossier directory.')
@@ -73,7 +90,6 @@ for dossier_file in os.listdir(dossier_dir).__reversed__():
     if dossier_file.endswith('.yml'):
         manifest_path = os.path.join(dossier_dir, dossier_file)
         break
-# noinspection PyTypeChecker
 manifest = quick_yaml.load(open(manifest_path, 'r').read())
 
 for mat in figure.Materials():
@@ -90,7 +106,7 @@ for mat in figure.Materials():
     phs.SetName('PhysicalSurface')
     phs.SetLocation(node_column_1_x, node_column_1_y)
     tree.SetRendererRootNode(poser.kRenderEngineCodeFIREFLY, phs)
-    if mat_name in ['1_Eyebrow', 'Preview']:  # '5_Cornea'
+    if mat_name in ['1_Eyebrow', 'Invis', 'Pubic_Hair', 'Preview']:  # '5_Cornea'
         phs.SetInputsCollapsed(True)
         phs.SetPreviewVisible(True)
     node_column_1_y += 90
@@ -124,6 +140,9 @@ for mat in figure.Materials():
             '5_Lacrimal': 'Lacrimal',
             '5_Sclera': 'Eyes',
             '6_Eyelash': 'Eyelashes',
+
+            'Gen_Skin': 'Penis',
+            'Glans': 'Penis',
         }[mat_name]]
     except KeyError:
         pass
@@ -132,6 +151,8 @@ for mat in figure.Materials():
     if mat_name == '5_Lacrimal' and 'Eyes' in manifest['Shaders']:
         # shader |= manifest['Shaders']['Eyes']  # Python 3.9
         shader = {**manifest['Shaders']['Eyes'], **shader}
+    if mat_name == '1_Lip'and 'Face' in manifest['Shaders']:
+        shader = {**manifest['Shaders']['Face'], **shader}
     if (mat_name == '3_Fingernail' or mat_name == '3_Toenail') and 'Limbs' in manifest['Shaders']:
         shader = {**manifest['Shaders']['Limbs'], **shader}
 
@@ -140,12 +161,22 @@ for mat in figure.Materials():
         chosen_mode = int(shader['DefaultMode']) - 1
 
     diffuse_texture: Optional[str] = None
-    diffuse_math = None
+    diffuse_math_argument, diffuse_math_value1, diffuse_math_value2, diffuse_math_name = None, None, None, None
     diffuse_hue, diffuse_saturation, diffuse_brightness = None, None, None
     diffuse_hsv: Optional[Tuple] = None
     if 'ColorTexture' in shader:
         diffuse_texture = get_value_for_this_mat(shader['ColorTexture'], None)
         if diffuse_texture == 'null': diffuse_texture = None
+
+        if 'DiffuseMathArgument' in shader:
+            diffuse_math_argument = get_value_for_this_mat(shader['DiffuseMathArgument'], None)
+            if 'DiffuseMathValue1' in shader:
+                diffuse_math_value1 = get_color_for_this_mat(shader['DiffuseMathValue1'], None)
+            if 'DiffuseMathValue2' in shader:
+                diffuse_math_value2 = get_color_for_this_mat(shader['DiffuseMathValue2'], None)
+            if 'DiffuseMathName' in shader:
+                diffuse_math_name = get_value_for_this_mat(shader['DiffuseMathName'], None)
+
         if 'DiffuseHue' in shader:
             diffuse_hue = get_value_for_this_mat(shader['DiffuseHue'], None)
         if 'DiffuseSaturation' in shader:
@@ -153,7 +184,6 @@ for mat in figure.Materials():
         if 'DiffuseBrightness' in shader:
             diffuse_brightness = get_value_for_this_mat(shader['DiffuseBrightness'], None)
         if diffuse_hue is not None or diffuse_saturation is not None or diffuse_brightness is not None:
-            # noinspection PyTypeChecker
             diffuse_hsv = (float(diffuse_hue) if diffuse_hue is not None else 0,
                            float(diffuse_saturation) if diffuse_saturation is not None else 1,
                            float(diffuse_brightness) if diffuse_brightness is not None else 1)
@@ -170,7 +200,7 @@ for mat in figure.Materials():
 
     # PhysicalSurface : Color
     color = (1, 1, 1)
-    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Preview']:
+    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Invis', 'Pubic_Hair', 'Preview']:
         color = (0, 0, 0)
     elif 'Color' in shader:
         color = get_color_for_this_mat(shader['Color'], color)
@@ -178,7 +208,8 @@ for mat in figure.Materials():
 
     # PhysicalSurface : Transparency
     trans = 0
-    if mat_name in ['5_Cornea', '7_EyeSurface', '7_Tear', 'Preview'] or opacity_texture is not None:
+    if mat_name in ['5_Cornea', '7_EyeSurface', '7_Tear', 'Invis', 'Pubic_Hair', 'Preview'] or \
+            opacity_texture is not None:
         trans = 1
     phs.InputByInternalName('Transparency').SetFloat(trans)
     if opacity_texture is not None:
@@ -240,11 +271,29 @@ for mat in figure.Materials():
         dif_hsv.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Color'))
         node_column_2_y += 130
 
-    if diffuse_math is not None:
-        dif_math = tree.CreateNode('image_map')
+    if diffuse_math_argument is not None:
+        dif_math = tree.CreateNode('color_math')
+        if diffuse_math_name is not None:
+            dif_math.SetName(diffuse_math_name)
         dif_math.SetLocation(node_column_2_x, node_column_2_y)
-        # TODO not implemented
-        node_column_2_y += 130
+        dif_math.InputByInternalName('Math_Argument').SetFloat(
+            {
+                'Add': 1,
+                'Subtract': 2,
+                'Multiply': 3,
+                'Divide': 4,
+                'Min': 15,
+                'Max': 16,
+            }[diffuse_math_argument]
+        )
+        if diffuse_math_value1 is not None:
+            dif_math.InputByInternalName('Value_1') \
+                .SetColor(diffuse_math_value1[0], diffuse_math_value1[1], diffuse_math_value1[2])
+        if diffuse_math_value2 is not None:
+            dif_math.InputByInternalName('Value_2') \
+                .SetColor(diffuse_math_value2[0], diffuse_math_value2[1], diffuse_math_value2[2])
+        dif_math.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Color'))
+        node_column_2_y += 114
 
     if diffuse_texture is not None:
         dif_map = tree.CreateNode('image_map')
@@ -252,11 +301,12 @@ for mat in figure.Materials():
         dif_map.SetLocation(node_column_2_x, node_column_2_y)
         dif_map.InputByInternalName('Image_Source').SetString(':Runtime:Texture:' + diffuse_texture)
         dif_map_out = dif_map.OutputByInternalName('Color')
-        if diffuse_math is not None:
-            # noinspection PyUnboundLocalVariable
-            dif_map_out.ConnectToInput(dif_math.InputByInternalName('Color'))
+        if diffuse_math_argument is not None:
+            if diffuse_math_value1 is None:
+                dif_map_out.ConnectToInput(dif_math.InputByInternalName('Value_1'))
+            if diffuse_math_value2 is None:
+                dif_map_out.ConnectToInput(dif_math.InputByInternalName('Value_2'))
         elif diffuse_hsv is not None:
-            # noinspection PyUnboundLocalVariable
             dif_map_out.ConnectToInput(dif_hsv.InputByInternalName('Color'))
         else:
             dif_map_out.ConnectToInput(phs.InputByInternalName('Color'))
@@ -292,7 +342,6 @@ for mat in figure.Materials():
         desaturator.SetName('Desaturator')
         desaturator.SetLocation(node_column_3_x, 320)
         desaturator.InputByInternalName('Saturation').SetFloat(0)
-        # noinspection PyUnboundLocalVariable
         dif_map.OutputByInternalName('Color').ConnectToInput(desaturator.InputByInternalName('Color'))
 
         multiplier = tree.CreateNode('color_math')
@@ -304,7 +353,7 @@ for mat in figure.Materials():
         desaturator.OutputByInternalName('Color').ConnectToInput(multiplier.InputByInternalName('Value_1'))
         desaturator.OutputByInternalName('Color').ConnectToInput(multiplier.InputByInternalName('Value_2'))
         multiplier.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Bump'))
-        node_column_2_y += 70
+        node_column_2_y += 114
 
     # -------------------------Cycles-Shaders-------------------------
 

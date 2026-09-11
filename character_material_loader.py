@@ -39,7 +39,7 @@ def get_value_for_this_mat(user_input: Any, default: Any) -> Any:  # float | str
                             return value[chosen_mode]
                         else:
                             return value
-            if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
+            if easy_name.lower() == 'else' or convenience_is_same_material(easy_name, mat_name):
                 if isinstance(value, list):
                     return value[chosen_mode]
                 else:
@@ -64,7 +64,7 @@ def get_color_for_this_mat(user_input: Any, default: \
                             return convenience_color(easy_color[chosen_mode])
                         else:
                             return convenience_color(easy_color)
-            if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
+            if easy_name.lower() == 'else' or convenience_is_same_material(easy_name, mat_name):
                 if isinstance(easy_color, list):
                     return convenience_color(easy_color[chosen_mode])
                 else:
@@ -106,7 +106,8 @@ for mat in figure.Materials():
     phs.SetName('PhysicalSurface')
     phs.SetLocation(node_column_1_x, node_column_1_y)
     tree.SetRendererRootNode(poser.kRenderEngineCodeFIREFLY, phs)
-    if mat_name in ['1_Eyebrow', 'Invis', 'Pubic_Hair', 'Preview']:  # '5_Cornea'
+    if mat_name in ['1_Eyebrow', 'Invis', 'Pubic_Hair', 'Preview'] or \
+            (mat_name == '5_Cornea' and 'Cornea' not in manifest['Shaders']):
         phs.SetInputsCollapsed(True)
         phs.SetPreviewVisible(True)
     node_column_1_y += 90
@@ -136,6 +137,7 @@ for mat in figure.Materials():
             '4_Gums': 'Mouth',
             '4_Teeth': 'Mouth',
             '4_Tongue': 'Mouth',
+            '5_Cornea': 'Cornea',
             '5_Iris': 'Eyes',
             '5_Lacrimal': 'Lacrimal',
             '5_Sclera': 'Eyes',
@@ -148,12 +150,17 @@ for mat in figure.Materials():
         pass
 
     # merge super-shaders into sub-shaders
-    if mat_name == '5_Lacrimal' and 'Eyes' in manifest['Shaders']:
+    if 'Skin' in manifest['Shaders'] and \
+            (mat_name in ['1_EyeSocket', '1_Lip', '1_Nostril', '1_SkinFace',
+                          '3_SkinArm', '3_SkinForearm', '3_SkinHand', '3_SkinLeg']
+             or mat_name.startswith('2_')):
+        shader = {**manifest['Shaders']['Skin'], **shader}
+    if 'Eyes' in manifest['Shaders'] and mat_name == '5_Lacrimal':
         # shader |= manifest['Shaders']['Eyes']  # Python 3.9
         shader = {**manifest['Shaders']['Eyes'], **shader}
-    if mat_name == '1_Lip'and 'Face' in manifest['Shaders']:
+    if 'Face' in manifest['Shaders'] and mat_name == '1_Lip':
         shader = {**manifest['Shaders']['Face'], **shader}
-    if (mat_name == '3_Fingernail' or mat_name == '3_Toenail') and 'Limbs' in manifest['Shaders']:
+    if 'Limbs' in manifest['Shaders'] and mat_name in ['3_Fingernail', '3_Toenail']:
         shader = {**manifest['Shaders']['Limbs'], **shader}
 
     chosen_mode = 0
@@ -249,7 +256,20 @@ for mat in figure.Materials():
         bump = float(get_value_for_this_mat(shader['Bump'], bump)) * 0.3937
     phs.InputByInternalName('Bump').SetFloat(bump)
 
-    # PhysicalSurface : SSS
+    # PhysicalSurface : SSS Customs
+    if 'ScatterRadius' in shader:
+        sss_radii = get_value_for_this_mat(shader['ScatterRadius'], None)
+        if sss_radii is not None:
+            spl = sss_radii.split(',')
+            phs.InputByInternalName('ScatterDistR').SetFloat(float(spl[0].strip()))
+            phs.InputByInternalName('ScatterDistG').SetFloat(float(spl[1].strip()))
+            phs.InputByInternalName('ScatterDistB').SetFloat(float(spl[2].strip()))
+    if 'ScatterScale' in shader:
+        sss_scale = get_value_for_this_mat(shader['ScatterScale'], None)
+        if sss_scale is not None:
+            phs.InputByInternalName('Scatter_Scale').SetFloat(float(sss_scale))
+
+    # PhysicalSurface : SSS Defaults
     phs_sss_group = phs.InputByInternalName('Scatter_Group')
     if mat_name in ['3_Fingernail', '3_Toenail']:
         phs_sss_group.SetFloat(2)
@@ -292,7 +312,11 @@ for mat in figure.Materials():
         if diffuse_math_value2 is not None:
             dif_math.InputByInternalName('Value_2') \
                 .SetColor(diffuse_math_value2[0], diffuse_math_value2[1], diffuse_math_value2[2])
-        dif_math.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Color'))
+        dif_math_out = dif_math.OutputByInternalName('Color')
+        if diffuse_hsv is None:
+            dif_math_out.ConnectToInput(phs.InputByInternalName('Color'))
+        else:
+            dif_math_out.ConnectToInput(dif_hsv.InputByInternalName('Color'))
         node_column_2_y += 114
 
     if diffuse_texture is not None:
@@ -310,6 +334,8 @@ for mat in figure.Materials():
             dif_map_out.ConnectToInput(dif_hsv.InputByInternalName('Color'))
         else:
             dif_map_out.ConnectToInput(phs.InputByInternalName('Color'))
+        if 'BumpMapIsColorTexture' in shader:
+            dif_map_out.ConnectToInput(phs.InputByInternalName('Bump'))
         dif_map.SetInputsCollapsed(True)
         dif_map.SetPreviewVisible(True)
         node_column_2_y += 255
@@ -411,7 +437,7 @@ for mat in figure.Materials():
             refraction_bsdf.InputByInternalName('IOR').SetFloat(1.33)
             refraction_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure2'))
 
-    # for inp in root.Inputs():
+    # for inp in phs.Inputs():
     #    print(inp.InternalName())
 
 # - every node is 105 px wide.

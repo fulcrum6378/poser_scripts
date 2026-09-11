@@ -11,4 +11,4 @@ if figure.Name() != 'ESPINELA':
     # calling body.LoadMaterialCollection() here makes Poser crash!
 
 else:
-    poser.ExecFile('remove_empty_daz_params_silent.py')
+    poser.ExecFile('figure_remove_empty_daz_params_silent.py')

@@ -1,9 +1,8 @@
 import math
 import os
+import poser
 import shutil
 from typing import Set, Tuple
-
-import poser
 
 
 def collect_pz3_required_paths(pz3_path: str, silent: bool = True) -> Tuple[Set[str], bool]:

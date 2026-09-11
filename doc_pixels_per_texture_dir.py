@@ -1,8 +1,7 @@
 import os
-from typing import Dict
-
 import poser
 from PIL import Image
+from typing import Dict
 
 from collect_required_content import collect_pz3_required_paths
 

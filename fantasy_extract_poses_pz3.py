@@ -1,9 +1,8 @@
 import os
+import poser
 from typing import Dict, List, Optional, Tuple
 
-import poser
-
-from pose_extractor import actors, expressions, jaw_dropper
+from character_pose_extractor import actors, expressions, jaw_dropper
 
 CHARACTERS: Dict[str, str] = {
     'CHRISTIE': 'C',
@@ -16,7 +15,8 @@ CHARACTERS: Dict[str, str] = {
 morph_forms: Dict[str, float] = {}
 
 
-def extract_all(pz3_path: str, pose_dir: str, album_id: str, render_id: str) -> List[str]:
+def extract_all(pz3_path: str, pose_dir: str, album_id: str, render_id: str
+                ) -> List[str]:
     global pz3, morph_forms, min_actor_cur, max_actor_cur
     if not os.path.isdir(pose_dir):
         os.mkdir(pose_dir)

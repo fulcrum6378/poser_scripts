@@ -1,6 +1,5 @@
-from typing import Dict, List, Tuple
-
 import poser
+from typing import Dict, List, Tuple
 
 SSS_DEFINITIONS: Dict[str, List[Tuple]] = {
     'ESPINELA': [(0.35, 0.3, 0.2, 0.0), (0.2, 0.39, 0.5, 1.0), (0.4, 0.2, 0.1)],

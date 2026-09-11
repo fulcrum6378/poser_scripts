@@ -1,6 +1,5 @@
-from typing import Dict
-
 import poser
+from typing import Dict
 
 morphforms: Dict[poser.ParmType, float] = {}
 

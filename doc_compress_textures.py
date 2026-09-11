@@ -1,9 +1,8 @@
 import os
-import shutil
-from typing import Dict, Set
-
 import poser
+import shutil
 from PIL import Image
+from typing import Dict, Set
 
 from collect_required_content import collect_pz3_required_paths
 

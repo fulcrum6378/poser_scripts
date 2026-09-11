@@ -12,9 +12,8 @@ text_entry = poser.DialogTextEntry(
     0, '',
     f"Roughness: {get_value(base, 'Roughness'):.2f}, " +
     f"Specular: {get_value(base, 'Specular')[0]:.2f}, " +
-    f"ScatterRadiusR: {get_value(base, 'ScatterDistR'):.2f}, " +
-    f"ScatterRadiusG: {get_value(base, 'ScatterDistG'):.2f}, " +
-    f"ScatterRadiusB: {get_value(base, 'ScatterDistB'):.2f}, " +
+    f"ScatterRadius: {get_value(base, 'ScatterDistR'):.2f}-"
+    f"{get_value(base, 'ScatterDistG'):.2f}-{get_value(base, 'ScatterDistB'):.2f}, " +
     f"ScatterScale: {get_value(base, 'Scatter_Scale'):.3f}"
 )
 if text_entry.Show() == 1:
@@ -28,9 +27,10 @@ if text_entry.Show() == 1:
         phs.InputByInternalName('Roughness').SetFloat(option(0))
         spec = option(1)
         phs.InputByInternalName('Specular').SetColor(spec, spec, spec)
-        phs.InputByInternalName('ScatterDistR').SetFloat(option(2))
-        phs.InputByInternalName('ScatterDistG').SetFloat(option(3))
-        phs.InputByInternalName('ScatterDistB').SetFloat(option(4))
-        phs.InputByInternalName('Scatter_Scale').SetFloat(option(5))
+        radii = options[2].split(': ')[1].split('-')
+        phs.InputByInternalName('ScatterDistR').SetFloat(radii[0])
+        phs.InputByInternalName('ScatterDistG').SetFloat(radii[1])
+        phs.InputByInternalName('ScatterDistB').SetFloat(radii[2])
+        phs.InputByInternalName('Scatter_Scale').SetFloat(option(3))
 
     scene.Draw()

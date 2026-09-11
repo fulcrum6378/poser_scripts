@@ -1,5 +1,4 @@
 import os
-
 import poser
 
 if 'INNOVATION' not in os.listdir(os.environ['USERPROFILE'] + '\\Desktop'):

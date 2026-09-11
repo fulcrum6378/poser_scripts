@@ -52,4 +52,4 @@ else:
     lThigh.DeleteTarget('FBMSmooth')
     lThigh.DeleteTarget('FBMYoung')
 
-    poser.ExecFile('remove_empty_daz_params_silent.py')
+    poser.ExecFile('figure_remove_empty_daz_params_silent.py')

@@ -1,6 +1,5 @@
-from typing import List
-
 import poser
+from typing import List
 
 text_entry = poser.DialogTextEntry(0, 'What FBM/PBM morphs to exclude?\n(use `,` for separation)')
 if text_entry.Show() == 1:

@@ -1,8 +1,7 @@
 import os
-
 import poser
 
-import pose_extractor as psx
+import character_pose_extractor as psx
 
 
 def get_pose_dir(album_id: str, album_name: str) -> str:

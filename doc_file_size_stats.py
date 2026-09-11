@@ -1,7 +1,6 @@
 import gzip
-from typing import Dict, Optional, Tuple
-
 import poser
+from typing import Dict, Optional, Tuple
 
 pz3_path = poser.Scene().DocumentPath()
 pz3: str

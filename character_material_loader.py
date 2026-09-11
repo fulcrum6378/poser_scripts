@@ -29,7 +29,7 @@ def convenience_color(any_str: str) -> Tuple[float, float, float]:
 
 
 def get_value_for_this_mat(user_input: Any, default: Any) -> Any:  # float | str
-    global chosen_mode
+    global chosen_mode, mat_name
     if isinstance(user_input, dict):
         for easy_name, value in user_input.items():
             if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
@@ -37,7 +37,6 @@ def get_value_for_this_mat(user_input: Any, default: Any) -> Any:  # float | str
                     return value[chosen_mode]
                 else:
                     return value
-            break
         return default
     elif isinstance(user_input, list):
         return user_input[chosen_mode]
@@ -48,7 +47,7 @@ def get_value_for_this_mat(user_input: Any, default: Any) -> Any:  # float | str
 def get_color_for_this_mat(user_input: Any, default: \
         Tuple[float, float, float]) -> \
         Tuple[float, float, float]:
-    global chosen_mode
+    global chosen_mode, mat_name
     if isinstance(user_input, dict):
         for easy_name, easy_color in user_input.items():
             if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
@@ -56,7 +55,6 @@ def get_color_for_this_mat(user_input: Any, default: \
                     return convenience_color(easy_color[chosen_mode])
                 else:
                     return convenience_color(easy_color)
-            break
         return default
     elif isinstance(user_input, list):
         return convenience_color(user_input[chosen_mode])
@@ -111,13 +109,13 @@ for mat in figure.Materials():
             '2_SkinNeck': 'Torso',
             '2_SkinTorso': 'Torso',
             '2_SkinHip': 'Torso',
-            '3_Fingernail': 'Limbs',
+            '3_Fingernail': 'Nails',
             '3_SkinArm': 'Limbs',
             '3_SkinFoot': 'Limbs',
             '3_SkinForearm': 'Limbs',
             '3_SkinHand': 'Limbs',
             '3_SkinLeg': 'Limbs',
-            '3_Toenail': 'Limbs',
+            '3_Toenail': 'Nails',
             '4_InnerMouth': 'Mouth',
             '4_Gums': 'Mouth',
             '4_Teeth': 'Mouth',
@@ -130,10 +128,12 @@ for mat in figure.Materials():
     except KeyError:
         pass
 
-    # merge the `Eyes` shader into `Lacrimal`
+    # merge super-shaders into sub-shaders
     if mat_name == '5_Lacrimal' and 'Eyes' in manifest['Shaders']:
         # shader |= manifest['Shaders']['Eyes']  # Python 3.9
-        shader = {**shader, **manifest['Shaders']['Eyes']}
+        shader = {**manifest['Shaders']['Eyes'], **shader}
+    if (mat_name == '3_Fingernail' or mat_name == '3_Toenail') and 'Limbs' in manifest['Shaders']:
+        shader = {**manifest['Shaders']['Limbs'], **shader}
 
     chosen_mode = 0
     if 'DefaultMode' in shader:
@@ -277,7 +277,14 @@ for mat in figure.Materials():
         node_column_2_y += 255
 
     if bump_texture is not None:
-        pass  # TODO
+        bmp_map = tree.CreateNode('image_map')
+        bmp_map.SetName('BumpTexture')
+        bmp_map.SetLocation(node_column_2_x, node_column_2_y)
+        bmp_map.InputByInternalName('Image_Source').SetString(':Runtime:Texture:' + bump_texture)
+        bmp_map.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Bump'))
+        bmp_map.SetInputsCollapsed(True)
+        bmp_map.SetPreviewVisible(True)
+        node_column_2_y += 255
 
     elif 'BumpMapFromColorTexture' in shader:
 

@@ -10,7 +10,6 @@ if figure.Name() != 'HORN':
     body.CreateValueParameter('ErectProlong')
     body.CreateValueParameter('ErectNarrow')
     body.CreateValueParameter('ErectRaise')
-    # calling body.LoadMaterialCollection() here makes Poser crash!
 
 else:
     body = figure.Actor('BODY')
@@ -65,3 +64,4 @@ else:
     lThigh.DeleteTarget('FBMYoung')
 
     poser.ExecFile('figure_remove_empty_daz_params_silent.py')
+    poser.ExecFile('character_material_loader.py')

@@ -22,7 +22,7 @@ def convenience_color(any_str: str) -> Tuple[float, float, float]:
     if ', ' in any_str:
         spl = any_str.split(', ')
         return float(spl[0]) / 255.0, float(spl[1]) / 255.0, float(spl[2]) / 255.0
-    if any_str.startswith('#') or any_str.startswith('0x'):
+    if any_str.startswith('0x'):
         any_str = any_str.replace('#', '').replace('0x', '')
         return int(any_str[0:2], 16) / 255.0, int(any_str[2:4], 16) / 255.0, int(any_str[4:6], 16) / 255.0
     return 0, 0, 0

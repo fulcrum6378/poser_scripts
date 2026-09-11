@@ -5,44 +5,13 @@ from typing import Any, Dict, Optional, Tuple
 import quick_yaml
 
 
-def convenience_material_name(mat_name):
-    return {
-        'EyeSocket': '1_EyeSocket',
-        'Eyebrow': '1_Eyebrow',
-        'EyeBrow': '1_Eyebrow',
-        'Lip': '1_Lip',
-        'Nostril': '1_Nostril',
-        'SkinFace': '1_SkinFace',
-        'Nipple': '2_Nipple',
-        'SkinHead': '2_SkinHead',
-        'SkinNeck': '2_SkinNeck',
-        'SkinTorso': '2_SkinTorso',
-        'SkinHip': '2_SkinHip',
-        'Fingernail': '3_Fingernail',
-        'FingerNail': '3_Fingernail',
-        'SkinArm': '3_SkinArm',
-        'SkinFoot': '3_SkinFoot',
-        'SkinForearm': '3_SkinForearm',
-        'SkinHand': '3_SkinHand',
-        'SkinLeg': '3_SkinLeg',
-        'Toenail': '3_Toenail',
-        'ToeNail': '3_Toenail',
-        'InnerMouth': '4_InnerMouth',
-        'Gums': '4_Gums',
-        'Teeth': '4_Teeth',
-        'Tongue': '4_Tongue',
-        'Cornea': '5_Cornea',
-        'Iris': '5_Iris',
-        'Lacrimal': '5_Lacrimal',
-        'Lacrimals': '5_Lacrimal',
-        'Pupil': '5_Pupil',
-        'Pupils': '5_Pupil',
-        'Sclera': '5_Sclera',
-        'Eyelash': '6_Eyelash',
-        'Eyelashes': '6_Eyelash',
-        'EyeSurface': '7_EyeSurface',
-        'Tear': '7_Tear',
-    }[mat_name]
+def convenience_is_same_material(easy_name, mat_name) -> bool:
+    if easy_name.lower() == mat_name.lower(): return True
+    if easy_name.lower() == mat_name[2:].lower(): return True
+    if easy_name.lower() + 's' == mat_name[2:].lower(): return True
+    if (easy_name.lower() == 'nail' or easy_name.lower() == 'nails') and \
+            (mat_name == '3_Fingernail' or mat_name == '3_Toenail'): return True
+    return False
 
 
 def convenience_color(any_str: str) -> Tuple[float, float, float]:
@@ -90,7 +59,7 @@ for mat in figure.Materials():
     phs.SetName('PhysicalSurface')
     phs.SetLocation(node_row_1, node_column_1)
     tree.SetRendererRootNode(poser.kRenderEngineCodeFIREFLY, phs)
-    if mat_name == '1_Eyebrow':  # in ['1_Eyebrow', '5_Cornea']:
+    if mat_name in ['1_Eyebrow', 'Preview']:  # '5_Cornea'
         phs.SetInputsCollapsed(True)
         phs.SetPreviewVisible(True)
     node_column_1 += 90
@@ -132,14 +101,26 @@ for mat in figure.Materials():
         # shader |= manifest['Shaders']['Eyes']  # Python 3.9
         shader = {**shader, **manifest['Shaders']['Eyes']}
 
+    chosen_mode = 0
+    if shader is not None and 'DefaultMode' in shader:
+        chosen_mode = int(shader['DefaultMode']) - 1
+
     diffuse_texture: Optional[str] = None
     color_math = None
     diffuse_hue, diffuse_saturation, diffuse_brightness = None, None, None
     hsv: Optional[Tuple] = None
-    if shader is not None and 'DiffuseTextures' in shader:
-        diffuse_texture = shader['DiffuseTextures'] \
-            [0 if len(shader['DiffuseTextures']) == 1 or 'DiffuseTextureDefault' not in shader \
-                else (int(shader['DiffuseTextureDefault']) - 1)]
+    if shader is not None and 'ColorTextures' in shader:
+        if isinstance(shader['ColorTextures'], dict):
+            for easy_name, texture in shader['ColorTextures'].items():
+                if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
+                    if isinstance(texture, list):
+                        diffuse_texture = texture[chosen_mode]
+                    else:
+                        diffuse_texture = texture
+                    break
+        else:
+            diffuse_texture = shader['ColorTextures'][chosen_mode]
+        if diffuse_texture == 'null': diffuse_texture = None
         if 'DiffuseHue' in shader:
             diffuse_hue = shader['DiffuseHue']
         if 'DiffuseSaturation' in shader:
@@ -167,8 +148,14 @@ for mat in figure.Materials():
         if shader is not None and 'Color' in shader:
             if isinstance(shader['Color'], dict):
                 for easy_name, easy_color in shader['Color'].items():
-                    if easy_name.lower() == 'all' or convenience_material_name(easy_name) == mat_name:
-                        color = convenience_color(easy_color)
+                    if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
+                        if isinstance(easy_color, list):
+                            color = convenience_color(easy_color[chosen_mode])
+                        else:
+                            color = convenience_color(easy_color)
+                    break
+            elif isinstance(shader['Color'], list):
+                color = convenience_color(shader['Color'][chosen_mode])
             else:
                 color = convenience_color(shader['Color'])
     phs.InputByInternalName('Color').SetColor(color[0], color[1], color[2])
@@ -178,14 +165,22 @@ for mat in figure.Materials():
     if mat_name in ['5_Cornea', '7_EyeSurface', '7_Tear', 'Preview'] or opacity_texture is not None:
         trans = 1
     phs.InputByInternalName('Transparency').SetFloat(trans)
+    if opacity_texture is not None:
+        phs.InputByInternalName('TransparencyMode').SetFloat(1)
 
     # PhysicalSurface : Roughness
     rough = 0
     if shader is not None and 'Roughness' in shader:
         if isinstance(shader['Roughness'], dict):
             for easy_name, value in shader['Roughness'].items():
-                if easy_name.lower() == 'all' or convenience_material_name(easy_name) == mat_name:
-                    rough = float(value)
+                if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
+                    if isinstance(value, list):
+                        rough = float(value[chosen_mode])
+                    else:
+                        rough = float(value)
+                break
+        elif isinstance(shader['Roughness'], list):
+            rough = float(shader['Roughness'][chosen_mode])
         else:
             rough = float(shader['Roughness'])
     phs.InputByInternalName('Roughness').SetFloat(rough)
@@ -200,8 +195,14 @@ for mat in figure.Materials():
         if shader is not None and 'Specular' in shader:
             if isinstance(shader['Specular'], dict):
                 for easy_name, easy_color in shader['Specular'].items():
-                    if easy_name.lower() == 'all' or convenience_material_name(easy_name) == mat_name:
-                        spec = convenience_color(easy_color)
+                    if easy_name.lower() == 'all' or convenience_is_same_material(easy_name, mat_name):
+                        if isinstance(easy_color, list):
+                            spec = convenience_color(easy_color[chosen_mode])
+                        else:
+                            spec = convenience_color(easy_color)
+                    break
+            elif isinstance(shader['Specular'], list):
+                spec = convenience_color(shader['Specular'][chosen_mode])
             else:
                 spec = convenience_color(shader['Specular'])
     phs.InputByInternalName('Specular').SetColor(spec[0], spec[1], spec[2])
@@ -268,7 +269,7 @@ for mat in figure.Materials():
             math = tree.CreateNode('ccl_Math')
             math.SetLocation(node_row_2, node_column_2)
             math.InputByInternalName('Type').SetFloat(1)
-            math.OutputByInternalName('Value').ConnectToInput(clo1.InputByInternalName('Closure1'))
+            math.OutputByInternalName('Value').ConnectToInput(clo1.InputByInternalName('Fac'))
             node_column_2 += 145
 
             light_path = tree.CreateNode('ccl_LightPath')

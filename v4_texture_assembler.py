@@ -63,7 +63,7 @@ elif ASK_MODE == 1:  # FILE CHOOSER
         if file_chooser.Show():
             choice = file_chooser.Path()
             manifest[shader_name][list(manifest[shader_name].keys())[0]] = \
-                choice[choice.rindex(runtime_marker):].replace(os.path.sep, ':')
+                choice[choice.rindex(runtime_marker) + 18:].replace(os.path.sep, ':')
         else:
             cancelled += 1
             if cancelled == 3:

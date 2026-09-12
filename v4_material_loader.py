@@ -288,7 +288,7 @@ def inject_material(
         dif_map = tree.CreateNode('image_map')
         dif_map.SetName('ColorTexture')
         dif_map.SetLocation(node_column_2_x, node_column_2_y)
-        dif_map.InputByInternalName('Image_Source').SetString(':Runtime:Texture:' + diffuse_texture)
+        dif_map.InputByInternalName('Image_Source').SetString(':Runtime:Textures:' + diffuse_texture)
         dif_map_out = dif_map.OutputByInternalName('Color')
         if diffuse_math_argument is not None:
             if diffuse_math_value1 is None:

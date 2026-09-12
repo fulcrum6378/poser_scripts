@@ -77,64 +77,14 @@ def inject_material(
     phs.SetName('PhysicalSurface')
     phs.SetLocation(node_column_1_x, node_column_1_y)
     tree.SetRendererRootNode(poser.kRenderEngineCodeFIREFLY, phs)
-    if mat_name in ['1_Eyebrow', 'Invis', 'Pubic_Hair', 'Preview'] or \
-            (mat_name == '5_Cornea' and 'Cornea' not in manifest):
+    if mat_name in ['1_Eyebrow', 'Invis', 'Pubic_Hair', 'Preview']:
         phs.SetInputsCollapsed(True)
         phs.SetPreviewVisible(True)
     node_column_1_y += 90
 
     # ------------------------Parse-Manifest--------------------------
 
-    shader: Dict[str, Any] = {}
-    shader_name: str = ''
-    try:
-        shader_name = {
-            '1_EyeSocket': 'Face',
-            '1_Lip': 'Lips',
-            '1_Nostril': 'Face',
-            '1_SkinFace': 'Face',
-            '2_Nipple': 'Torso',
-            '2_SkinHead': 'Torso',
-            '2_SkinNeck': 'Torso',
-            '2_SkinTorso': 'Torso',
-            '2_SkinHip': 'Torso',
-            '3_Fingernail': 'Nails',
-            '3_SkinArm': 'Limbs',
-            '3_SkinFoot': 'Limbs',
-            '3_SkinForearm': 'Limbs',
-            '3_SkinHand': 'Limbs',
-            '3_SkinLeg': 'Limbs',
-            '3_Toenail': 'Nails',
-            '4_InnerMouth': 'Mouth',
-            '4_Gums': 'Mouth',
-            '4_Teeth': 'Mouth',
-            '4_Tongue': 'Mouth',
-            '5_Cornea': 'Cornea',
-            '5_Iris': 'Eyes',
-            '5_Lacrimal': 'Lacrimal',
-            '5_Sclera': 'Eyes',
-            '6_Eyelash': 'Eyelashes',
-
-            'Gen_Skin': 'Penis',
-            'Glans': 'Penis',
-        }[mat_name]
-        shader = manifest[shader_name]
-    except KeyError:
-        pass
-
-    # merge super-shaders into sub-shaders
-    if 'Skin' in manifest and \
-            (mat_name in ['1_EyeSocket', '1_Lip', '1_Nostril', '1_SkinFace',
-                          '3_SkinArm', '3_SkinForearm', '3_SkinHand', '3_SkinLeg']
-             or mat_name.startswith('2_')):
-        shader = {**manifest['Skin'], **shader}
-    if 'Eyes' in manifest and mat_name == '5_Lacrimal':
-        # shader |= manifest['Eyes']  # Python 3.9
-        shader = {**manifest['Eyes'], **shader}
-    if 'Face' in manifest and mat_name == '1_Lip':
-        shader = {**manifest['Face'], **shader}
-    if 'Limbs' in manifest and mat_name in ['3_Fingernail', '3_Toenail']:
-        shader = {**manifest['Limbs'], **shader}
+    shader_name, shader = get_shader(mat_name, manifest)
 
     chosen_mode = 0
     if user_choices is None:
@@ -161,29 +111,29 @@ def inject_material(
     diffuse_hue, diffuse_saturation, diffuse_brightness = None, None, None
     diffuse_hsv: Optional[Tuple] = None
     if 'ColorTexture' in shader:
-        diffuse_texture = get_value_for_this_mat(shader['ColorTexture'], mat_name, chosen_mode, None)
+        diffuse_texture = get_value_for_mat(shader['ColorTexture'], mat_name, chosen_mode, None)
         if diffuse_texture == 'null': diffuse_texture = None
 
         if 'DiffuseMathArgument' in shader:
-            diffuse_math_argument = get_value_for_this_mat(
+            diffuse_math_argument = get_value_for_mat(
                 shader['DiffuseMathArgument'], mat_name, chosen_mode, None)
             if 'DiffuseMathValue1' in shader:
-                diffuse_math_value1 = easy_color(get_value_for_this_mat(
+                diffuse_math_value1 = easy_color(get_value_for_mat(
                     shader['DiffuseMathValue1'], mat_name, chosen_mode, None))
             if 'DiffuseMathValue2' in shader:
-                diffuse_math_value2 = easy_color(get_value_for_this_mat(
+                diffuse_math_value2 = easy_color(get_value_for_mat(
                     shader['DiffuseMathValue2'], mat_name, chosen_mode, None))
             if 'DiffuseMathName' in shader:
-                diffuse_math_name = easy_color(get_value_for_this_mat(
+                diffuse_math_name = easy_color(get_value_for_mat(
                     shader['DiffuseMathName'], mat_name, chosen_mode, None))
 
         if 'DiffuseHue' in shader:
-            diffuse_hue = get_value_for_this_mat(shader['DiffuseHue'], mat_name, chosen_mode, None)
+            diffuse_hue = get_value_for_mat(shader['DiffuseHue'], mat_name, chosen_mode, None)
         if 'DiffuseSaturation' in shader:
-            diffuse_saturation = get_value_for_this_mat(
+            diffuse_saturation = get_value_for_mat(
                 shader['DiffuseSaturation'], mat_name, chosen_mode, None)
         if 'DiffuseBrightness' in shader:
-            diffuse_brightness = get_value_for_this_mat(
+            diffuse_brightness = get_value_for_mat(
                 shader['DiffuseBrightness'], mat_name, chosen_mode, None)
         if diffuse_hue is not None or diffuse_saturation is not None or diffuse_brightness is not None:
             diffuse_hsv = (float(diffuse_hue) if diffuse_hue is not None else 0,
@@ -192,11 +142,11 @@ def inject_material(
 
     opacity_texture: Optional[str] = None
     if 'OpacityTexture' in shader:
-        opacity_texture = get_value_for_this_mat(shader['OpacityTexture'], mat_name, chosen_mode, None)
+        opacity_texture = get_value_for_mat(shader['OpacityTexture'], mat_name, chosen_mode, None)
 
     bump_texture: Optional[str] = None
     if 'BumpTexture' in shader:
-        bump_texture = get_value_for_this_mat(shader['BumpTexture'], mat_name, chosen_mode, None)
+        bump_texture = get_value_for_mat(shader['BumpTexture'], mat_name, chosen_mode, None)
 
     # -----------------------PhysicalSurface--------------------------
 
@@ -205,7 +155,7 @@ def inject_material(
     if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Invis', 'Pubic_Hair', 'Preview']:
         color = (0, 0, 0)
     elif 'Color' in shader:
-        color = easy_color(get_value_for_this_mat(shader['Color'], mat_name, chosen_mode, color))
+        color = easy_color(get_value_for_mat(shader['Color'], mat_name, chosen_mode, color))
     phs.InputByInternalName('Color').SetColor(*color)
 
     # PhysicalSurface : Transparency
@@ -220,7 +170,7 @@ def inject_material(
     # PhysicalSurface : Roughness
     rough = 0
     if 'Roughness' in shader:
-        rough = float(get_value_for_this_mat(shader['Roughness'], mat_name, chosen_mode, rough))
+        rough = float(get_value_for_mat(shader['Roughness'], mat_name, chosen_mode, rough))
     phs.InputByInternalName('Roughness').SetFloat(rough)
 
     # PhysicalSurface : Specular
@@ -230,7 +180,7 @@ def inject_material(
     elif mat_name == '7_Tear':
         spec = (1, 1, 1)
     elif 'Specular' in shader:
-        spec = easy_color(get_value_for_this_mat(shader['Specular'], mat_name, chosen_mode, spec))
+        spec = easy_color(get_value_for_mat(shader['Specular'], mat_name, chosen_mode, spec))
     phs.InputByInternalName('Specular').SetColor(*spec)
 
     # PhysicalSurface : Metallic
@@ -248,21 +198,36 @@ def inject_material(
     # PhysicalSurface : Bump
     bump = 0
     if 'Bump' in shader:
-        bump = float(get_value_for_this_mat(shader['Bump'], mat_name, chosen_mode, bump)) * 0.3937
+        bump = float(get_value_for_mat(shader['Bump'], mat_name, chosen_mode, bump)) * 0.3937
     phs.InputByInternalName('Bump').SetFloat(bump)
 
-    # PhysicalSurface : SSS Customs
+    # PhysicalSurface : SSS Radii
+    sss_radii = None
     if 'ScatterRadius' in shader:
-        sss_radii = get_value_for_this_mat(shader['ScatterRadius'], mat_name, chosen_mode, None)
-        if sss_radii is not None:
-            spl = sss_radii.split(',')
-            phs.InputByInternalName('ScatterDistR').SetFloat(float(spl[0].strip()))
-            phs.InputByInternalName('ScatterDistG').SetFloat(float(spl[1].strip()))
-            phs.InputByInternalName('ScatterDistB').SetFloat(float(spl[2].strip()))
+        if shader_name == 'Eyes' and mat_name != '5_Sclera':
+            pass
+        else:
+            sss_radii = get_value_for_mat(shader['ScatterRadius'], mat_name, chosen_mode, None)
+    elif mat_name == '5_Cornea':
+        sss_radii = get_value_for_mat(
+            get_shader('5_Sclera', manifest)[1]['ScatterRadius'],
+            '5_Sclera', chosen_mode, None)
+    if sss_radii is not None:
+        spl = sss_radii.split(',')
+        phs.InputByInternalName('ScatterDistR').SetFloat(float(spl[0].strip()))
+        phs.InputByInternalName('ScatterDistG').SetFloat(float(spl[1].strip()))
+        phs.InputByInternalName('ScatterDistB').SetFloat(float(spl[2].strip()))
+
+    # PhysicalSurface : SSS Scale
+    sss_scale = None
     if 'ScatterScale' in shader:
-        sss_scale = get_value_for_this_mat(shader['ScatterScale'], mat_name, chosen_mode, None)
-        if sss_scale is not None:
-            phs.InputByInternalName('Scatter_Scale').SetFloat(float(sss_scale))
+        sss_scale = get_value_for_mat(shader['ScatterScale'], mat_name, chosen_mode, None)
+    elif mat_name == '5_Cornea':
+        sss_scale = get_value_for_mat(
+            get_shader('5_Sclera', manifest)[1]['ScatterScale'],
+            '5_Sclera', chosen_mode, None)
+    if sss_scale is not None:
+        phs.InputByInternalName('Scatter_Scale').SetFloat(float(sss_scale))
 
     # PhysicalSurface : SSS Defaults
     phs_sss_group = phs.InputByInternalName('Scatter_Group')
@@ -439,7 +404,63 @@ def inject_material(
     return user_choices
 
 
-def get_value_for_this_mat(
+def get_shader(mat_name: str, manifest: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    shader: Dict[str, Any] = {}
+    shader_name: str = ''
+
+    # find the correct shader based on the material name
+    try:
+        shader_name = {
+            '1_EyeSocket': 'Face',
+            '1_Lip': 'Lips',
+            '1_Nostril': 'Face',
+            '1_SkinFace': 'Face',
+            '2_Nipple': 'Torso',
+            '2_SkinHead': 'Torso',
+            '2_SkinNeck': 'Torso',
+            '2_SkinTorso': 'Torso',
+            '2_SkinHip': 'Torso',
+            '3_Fingernail': 'Nails',
+            '3_SkinArm': 'Limbs',
+            '3_SkinFoot': 'Limbs',
+            '3_SkinForearm': 'Limbs',
+            '3_SkinHand': 'Limbs',
+            '3_SkinLeg': 'Limbs',
+            '3_Toenail': 'Nails',
+            '4_InnerMouth': 'Mouth',
+            '4_Gums': 'Mouth',
+            '4_Teeth': 'Mouth',
+            '4_Tongue': 'Mouth',
+            '5_Iris': 'Eyes',
+            '5_Lacrimal': 'Lacrimal',
+            '5_Sclera': 'Eyes',
+            '6_Eyelash': 'Eyelashes',
+
+            'Gen_Skin': 'Penis',
+            'Glans': 'Penis',
+        }[mat_name]
+        shader = manifest[shader_name]
+    except KeyError:
+        pass
+
+    # merge super-shaders into sub-shaders
+    if 'Skin' in manifest and \
+            (mat_name in ['1_EyeSocket', '1_Lip', '1_Nostril', '1_SkinFace',
+                          '3_SkinArm', '3_SkinForearm', '3_SkinHand', '3_SkinLeg']
+             or mat_name.startswith('2_')):
+        shader = {**manifest['Skin'], **shader}
+    if 'Eyes' in manifest and mat_name == '5_Lacrimal':
+        # shader |= manifest['Eyes']  # Python 3.9
+        shader = {**manifest['Eyes'], **shader}
+    if 'Face' in manifest and mat_name == '1_Lip':
+        shader = {**manifest['Face'], **shader}
+    if 'Limbs' in manifest and mat_name in ['3_Fingernail', '3_Toenail']:
+        shader = {**manifest['Limbs'], **shader}
+
+    return shader_name, shader
+
+
+def get_value_for_mat(
         user_input: Any,
         mat_name: str,
         chosen_mode: int,

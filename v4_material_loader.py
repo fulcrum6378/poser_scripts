@@ -1,8 +1,71 @@
-from typing import Any, Dict, Optional, Tuple
+import poser
+from typing import Any, Dict, Optional, Set, Tuple
 
-def inject_material(mat: poser.MaterialType):
-    mat_name = mat.Name()
-    tree = mat.ShaderTree()
+
+def inject_material(
+        material: poser.MaterialType,
+        manifest: Dict[str, Any],
+        user_choices: Optional[Set[str]],
+) -> Set[str]:
+    """
+    A manifest is a dictionary containing everything special about the appearance of your character.
+    It contains these shader names as its keys:
+
+    - Skin (a superset for Face, Lips, Torso and Limbs excluding nails)
+    - Face (a superset for Lips)
+    - Eyelashes
+    - Eyes (a superset for Lacrimal)
+    - Lacrimal
+    - Lips
+    - Mouth
+    - Torso
+    - Limbs (a superset for Nails)
+    - Nails
+
+    Every shader can have any of these parameters:
+
+    - Modes [list]
+    - DefaultMode [int]
+    - Color [color]
+    - ColorTexture [str-path]
+    - DiffuseHue [float]: Hue in HSV2 for ColorTexture
+    - DiffuseSaturation [float]: Saturation in HSV2 for ColorTexture
+    - DiffuseBrightness [float]: Value in HSV2 for ColorTexture
+    - DiffuseMathArgument [str]: color_math for ColorTexture, e.g. Add,Subtract,Multiple,Divide,Min,Max
+    - DiffuseMathValue1 [color]: color_math for ColorTexture, leave undefined to input ColorTexture
+    - DiffuseMathValue2 [color]: color_math for ColorTexture, leave undefined to input ColorTexture
+    - DiffuseMathName [str]: a visible name for the color_math node
+    - OpacityTexture [str-path]
+    - Roughness [float]
+    - Specular [color]
+    - Bump [float]
+    - BumpTexture [str-path]
+    - BumpMapIsColorTexture [bool]
+    - BumpMapFromColorTexture [bool]
+    - ScatterRadius [str: "<float>, <float>, <float>"]
+    - ScatterScale [float]
+
+    And each parameter can have these types of inputs:
+
+    - raw values; e.g. `Bump: 0.05`
+    - list of values; e.g.
+      ```
+      Bump:
+        - 0.05   # for mode 1
+        - 0.025  # for mode 2
+      ```
+    - dictionary of values for each V4 material; e.g.
+      ```
+      Bump:
+        SkinFace: 0.05
+        Lip: 0.025
+      ```
+
+    :returns: a Set containing the previous choices of the user
+    """
+
+    mat_name = material.Name()
+    tree = material.ShaderTree()
     previous_nodes = tree.Nodes()
     phs = tree.CreateNode('PhysicalSurface')
     for previous_node in previous_nodes:
@@ -15,7 +78,7 @@ def inject_material(mat: poser.MaterialType):
     phs.SetLocation(node_column_1_x, node_column_1_y)
     tree.SetRendererRootNode(poser.kRenderEngineCodeFIREFLY, phs)
     if mat_name in ['1_Eyebrow', 'Invis', 'Pubic_Hair', 'Preview'] or \
-            (mat_name == '5_Cornea' and 'Cornea' not in manifest['Shaders']):
+            (mat_name == '5_Cornea' and 'Cornea' not in manifest):
         phs.SetInputsCollapsed(True)
         phs.SetPreviewVisible(True)
     node_column_1_y += 90
@@ -23,8 +86,9 @@ def inject_material(mat: poser.MaterialType):
     # ------------------------Parse-Manifest--------------------------
 
     shader: Dict[str, Any] = {}
+    shader_name: str = ''
     try:
-        shader = manifest['Shaders'][{
+        shader_name = {
             '1_EyeSocket': 'Face',
             '1_Lip': 'Lips',
             '1_Nostril': 'Face',
@@ -53,27 +117,44 @@ def inject_material(mat: poser.MaterialType):
 
             'Gen_Skin': 'Penis',
             'Glans': 'Penis',
-        }[mat_name]]
+        }[mat_name]
+        shader = manifest[shader_name]
     except KeyError:
         pass
 
     # merge super-shaders into sub-shaders
-    if 'Skin' in manifest['Shaders'] and \
+    if 'Skin' in manifest and \
             (mat_name in ['1_EyeSocket', '1_Lip', '1_Nostril', '1_SkinFace',
                           '3_SkinArm', '3_SkinForearm', '3_SkinHand', '3_SkinLeg']
              or mat_name.startswith('2_')):
-        shader = {**manifest['Shaders']['Skin'], **shader}
-    if 'Eyes' in manifest['Shaders'] and mat_name == '5_Lacrimal':
-        # shader |= manifest['Shaders']['Eyes']  # Python 3.9
-        shader = {**manifest['Shaders']['Eyes'], **shader}
-    if 'Face' in manifest['Shaders'] and mat_name == '1_Lip':
-        shader = {**manifest['Shaders']['Face'], **shader}
-    if 'Limbs' in manifest['Shaders'] and mat_name in ['3_Fingernail', '3_Toenail']:
-        shader = {**manifest['Shaders']['Limbs'], **shader}
+        shader = {**manifest['Skin'], **shader}
+    if 'Eyes' in manifest and mat_name == '5_Lacrimal':
+        # shader |= manifest['Eyes']  # Python 3.9
+        shader = {**manifest['Eyes'], **shader}
+    if 'Face' in manifest and mat_name == '1_Lip':
+        shader = {**manifest['Face'], **shader}
+    if 'Limbs' in manifest and mat_name in ['3_Fingernail', '3_Toenail']:
+        shader = {**manifest['Limbs'], **shader}
 
     chosen_mode = 0
-    if 'DefaultMode' in shader:
-        chosen_mode = int(shader['DefaultMode']) - 1
+    if user_choices is None:
+        if 'DefaultMode' in shader:
+            chosen_mode = int(shader['DefaultMode']) - 1
+    elif 'Modes' in shader:
+        if len(shader['Modes']) == 1:
+            chosen_mode = 0
+        else:
+            found_a_choice = False
+            for choice in user_choices:
+                if choice in shader['Modes']:
+                    chosen_mode = shader['Modes'].index(choice)
+                    found_a_choice = True
+            if not found_a_choice:
+                choice = poser.DialogSimple.AskMenu(
+                    'Character Material Selector', shader_name, tuple(shader['Modes']))
+                if choice is not None and len(choice) > 0:
+                    user_choices.add(choice)
+                    chosen_mode = shader['Modes'].index(choice)
 
     diffuse_texture: Optional[str] = None
     diffuse_math_argument, diffuse_math_value1, diffuse_math_value2, diffuse_math_name = None, None, None, None
@@ -84,20 +165,26 @@ def inject_material(mat: poser.MaterialType):
         if diffuse_texture == 'null': diffuse_texture = None
 
         if 'DiffuseMathArgument' in shader:
-            diffuse_math_argument = get_value_for_this_mat(shader['DiffuseMathArgument'], mat_name, chosen_mode, None)
+            diffuse_math_argument = get_value_for_this_mat(
+                shader['DiffuseMathArgument'], mat_name, chosen_mode, None)
             if 'DiffuseMathValue1' in shader:
-                diffuse_math_value1 = get_color_for_this_mat(shader['DiffuseMathValue1'], mat_name, chosen_mode, None)
+                diffuse_math_value1 = easy_color(get_value_for_this_mat(
+                    shader['DiffuseMathValue1'], mat_name, chosen_mode, None))
             if 'DiffuseMathValue2' in shader:
-                diffuse_math_value2 = get_color_for_this_mat(shader['DiffuseMathValue2'], mat_name, chosen_mode, None)
+                diffuse_math_value2 = easy_color(get_value_for_this_mat(
+                    shader['DiffuseMathValue2'], mat_name, chosen_mode, None))
             if 'DiffuseMathName' in shader:
-                diffuse_math_name = get_value_for_this_mat(shader['DiffuseMathName'], mat_name, chosen_mode, None)
+                diffuse_math_name = easy_color(get_value_for_this_mat(
+                    shader['DiffuseMathName'], mat_name, chosen_mode, None))
 
         if 'DiffuseHue' in shader:
             diffuse_hue = get_value_for_this_mat(shader['DiffuseHue'], mat_name, chosen_mode, None)
         if 'DiffuseSaturation' in shader:
-            diffuse_saturation = get_value_for_this_mat(shader['DiffuseSaturation'], mat_name, chosen_mode, None)
+            diffuse_saturation = get_value_for_this_mat(
+                shader['DiffuseSaturation'], mat_name, chosen_mode, None)
         if 'DiffuseBrightness' in shader:
-            diffuse_brightness = get_value_for_this_mat(shader['DiffuseBrightness'], mat_name, chosen_mode, None)
+            diffuse_brightness = get_value_for_this_mat(
+                shader['DiffuseBrightness'], mat_name, chosen_mode, None)
         if diffuse_hue is not None or diffuse_saturation is not None or diffuse_brightness is not None:
             diffuse_hsv = (float(diffuse_hue) if diffuse_hue is not None else 0,
                            float(diffuse_saturation) if diffuse_saturation is not None else 1,
@@ -118,8 +205,8 @@ def inject_material(mat: poser.MaterialType):
     if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Invis', 'Pubic_Hair', 'Preview']:
         color = (0, 0, 0)
     elif 'Color' in shader:
-        color = get_color_for_this_mat(shader['Color'], mat_name, chosen_mode, color)
-    phs.InputByInternalName('Color').SetColor(color[0], color[1], color[2])
+        color = easy_color(get_value_for_this_mat(shader['Color'], mat_name, chosen_mode, color))
+    phs.InputByInternalName('Color').SetColor(*color)
 
     # PhysicalSurface : Transparency
     trans = 0
@@ -143,8 +230,8 @@ def inject_material(mat: poser.MaterialType):
     elif mat_name == '7_Tear':
         spec = (1, 1, 1)
     elif 'Specular' in shader:
-        spec = get_color_for_this_mat(shader['Specular'], mat_name, chosen_mode, spec)
-    phs.InputByInternalName('Specular').SetColor(spec[0], spec[1], spec[2])
+        spec = easy_color(get_value_for_this_mat(shader['Specular'], mat_name, chosen_mode, spec))
+    phs.InputByInternalName('Specular').SetColor(*spec)
 
     # PhysicalSurface : Metallic
     if mat_name in ['7_EyeSurface', '7_Tear']:
@@ -215,11 +302,9 @@ def inject_material(mat: poser.MaterialType):
             }[diffuse_math_argument]
         )
         if diffuse_math_value1 is not None:
-            dif_math.InputByInternalName('Value_1') \
-                .SetColor(diffuse_math_value1[0], diffuse_math_value1[1], diffuse_math_value1[2])
+            dif_math.InputByInternalName('Value_1').SetColor(*diffuse_math_value1)
         if diffuse_math_value2 is not None:
-            dif_math.InputByInternalName('Value_2') \
-                .SetColor(diffuse_math_value2[0], diffuse_math_value2[1], diffuse_math_value2[2])
+            dif_math.InputByInternalName('Value_2').SetColor(*diffuse_math_value2)
         dif_math_out = dif_math.OutputByInternalName('Color')
         if diffuse_hsv is None:
             dif_math_out.ConnectToInput(phs.InputByInternalName('Color'))
@@ -351,6 +436,8 @@ def inject_material(mat: poser.MaterialType):
     # - every node is 105 px wide.
     # - CyclesSurface is 117 px tall.
 
+    return user_choices
+
 
 def get_value_for_this_mat(
         user_input: Any,
@@ -363,12 +450,12 @@ def get_value_for_this_mat(
         for easy_name, value in user_input.items():
             if ', ' in easy_name:
                 for easier_name in easy_name.split(', '):
-                    if convenience_is_same_material(easier_name, mat_name):
+                    if compare_easy_mat_name(easier_name, mat_name):
                         if isinstance(value, list):
                             return value[chosen_mode]
                         else:
                             return value
-            if easy_name.lower() == 'else' or convenience_is_same_material(easy_name, mat_name):
+            if easy_name.lower() == 'else' or compare_easy_mat_name(easy_name, mat_name):
                 if isinstance(value, list):
                     return value[chosen_mode]
                 else:
@@ -380,34 +467,7 @@ def get_value_for_this_mat(
         return user_input
 
 
-def get_color_for_this_mat(
-        user_input: Any,
-        mat_name: str,
-        chosen_mode: int,
-        default: Optional[Tuple[float, float, float]]
-) -> Optional[Tuple[float, float, float]]:
-    if isinstance(user_input, dict):
-        for easy_name, easy_color in user_input.items():
-            if ', ' in easy_name:
-                for easier_name in easy_name.split(', '):
-                    if convenience_is_same_material(easier_name, mat_name):
-                        if isinstance(easy_color, list):
-                            return convenience_color(easy_color[chosen_mode])
-                        else:
-                            return convenience_color(easy_color)
-            if easy_name.lower() == 'else' or convenience_is_same_material(easy_name, mat_name):
-                if isinstance(easy_color, list):
-                    return convenience_color(easy_color[chosen_mode])
-                else:
-                    return convenience_color(easy_color)
-        return default
-    elif isinstance(user_input, list):
-        return convenience_color(user_input[chosen_mode])
-    else:
-        return convenience_color(user_input)
-
-
-def convenience_is_same_material(easy_name: str, mat_name: str) -> bool:
+def compare_easy_mat_name(easy_name: str, mat_name: str) -> bool:
     if easy_name.lower() == mat_name.lower(): return True
     if easy_name.lower() == mat_name[2:].lower(): return True
     if easy_name.lower() + 's' == mat_name[2:].lower(): return True
@@ -416,7 +476,9 @@ def convenience_is_same_material(easy_name: str, mat_name: str) -> bool:
     return False
 
 
-def convenience_color(any_str: str) -> Tuple[float, float, float]:
+def easy_color(any_str: Any) -> Tuple[float, float, float]:
+    if not isinstance(any_str, str):
+        return any_str  # can sometimes be the defaulted tuple which is already converted into a color
     try:
         return float(any_str), float(any_str), float(any_str)
     except ValueError:

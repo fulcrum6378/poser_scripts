@@ -5,9 +5,9 @@ from typing import Any, Dict, Optional
 import quick_yaml
 
 
-def load_dossier(
-        figure_name: str = poser.Scene().CurrentFigure().Name()
-) -> Optional[Dict[str, Any]]:
+def load_dossier() -> Optional[Dict[str, Any]]:
+    figure_name = poser.Scene().CurrentFigure().Name()
+    # do NOT make this^ a function parameter with a default value; it'll be cached!!!
     if figure_name == 'HORN': figure_name = 'MAHDI'
     if figure_name == 'BEAST': figure_name = 'MILO'
     character = figure_name.capitalize()

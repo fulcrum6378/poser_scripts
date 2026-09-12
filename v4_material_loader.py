@@ -156,6 +156,8 @@ def inject_material(
         color = (0, 0, 0)
     elif 'Color' in shader:
         color = easy_color(get_value_for_mat(shader['Color'], mat_name, chosen_mode, color))
+    elif mat_name in ['6_Eyelash']:  # do not merge into the above list
+        color = (0, 0, 0)
     phs.InputByInternalName('Color').SetColor(*color)
 
     # PhysicalSurface : Transparency
@@ -209,9 +211,10 @@ def inject_material(
         else:
             sss_radii = get_value_for_mat(shader['ScatterRadius'], mat_name, chosen_mode, None)
     elif mat_name == '5_Cornea':
-        sss_radii = get_value_for_mat(
-            get_shader('5_Sclera', manifest)[1]['ScatterRadius'],
-            '5_Sclera', chosen_mode, None)
+        eyes_shader = get_shader('5_Sclera', manifest)[1]
+        if 'ScatterRadius' in eyes_shader:
+            sss_radii = get_value_for_mat(
+                eyes_shader['ScatterRadius'], '5_Sclera', chosen_mode, None)
     if sss_radii is not None:
         spl = sss_radii.split(',')
         phs.InputByInternalName('ScatterDistR').SetFloat(float(spl[0].strip()))
@@ -221,11 +224,15 @@ def inject_material(
     # PhysicalSurface : SSS Scale
     sss_scale = None
     if 'ScatterScale' in shader:
-        sss_scale = get_value_for_mat(shader['ScatterScale'], mat_name, chosen_mode, None)
+        if shader_name == 'Eyes' and mat_name != '5_Sclera':
+            pass
+        else:
+            sss_scale = get_value_for_mat(shader['ScatterScale'], mat_name, chosen_mode, None)
     elif mat_name == '5_Cornea':
-        sss_scale = get_value_for_mat(
-            get_shader('5_Sclera', manifest)[1]['ScatterScale'],
-            '5_Sclera', chosen_mode, None)
+        eyes_shader = get_shader('5_Sclera', manifest)[1]
+        if 'ScatterScale' in eyes_shader:
+            sss_scale = get_value_for_mat(
+                eyes_shader['ScatterScale'], '5_Sclera', chosen_mode, None)
     if sss_scale is not None:
         phs.InputByInternalName('Scatter_Scale').SetFloat(float(sss_scale))
 

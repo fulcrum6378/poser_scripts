@@ -28,9 +28,9 @@ if text_entry.Show() == 1:
         spec = option(1)
         phs.InputByInternalName('Specular').SetColor(spec, spec, spec)
         radii = options[2].split(': ')[1].split('-')
-        phs.InputByInternalName('ScatterDistR').SetFloat(radii[0])
-        phs.InputByInternalName('ScatterDistG').SetFloat(radii[1])
-        phs.InputByInternalName('ScatterDistB').SetFloat(radii[2])
+        phs.InputByInternalName('ScatterDistR').SetFloat(float(radii[0]))
+        phs.InputByInternalName('ScatterDistG').SetFloat(float(radii[1]))
+        phs.InputByInternalName('ScatterDistB').SetFloat(float(radii[2]))
         phs.InputByInternalName('Scatter_Scale').SetFloat(option(3))
 
     scene.Draw()

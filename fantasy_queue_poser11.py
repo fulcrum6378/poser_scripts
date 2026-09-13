@@ -2,7 +2,7 @@ import os
 import poser
 import shutil
 
-from collect_required_content import collect_pz3_required_paths, copy_to
+from doc_collect_required_content import collect_pz3_required_paths, copy_to
 from fantasy_extract_poses_pz3 import CHARACTERS
 
 scene = poser.Scene()

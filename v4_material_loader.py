@@ -124,8 +124,8 @@ def inject_material(
                 diffuse_math_value2 = easy_color(get_value_for_mat(
                     shader['DiffuseMathValue2'], mat_name, chosen_mode, None))
             if 'DiffuseMathName' in shader:
-                diffuse_math_name = easy_color(get_value_for_mat(
-                    shader['DiffuseMathName'], mat_name, chosen_mode, None))
+                diffuse_math_name = get_value_for_mat(
+                    shader['DiffuseMathName'], mat_name, chosen_mode, None)
 
         if 'DiffuseHue' in shader:
             diffuse_hue = get_value_for_mat(shader['DiffuseHue'], mat_name, chosen_mode, None)

@@ -1,9 +1,12 @@
+import importlib
 import poser
 
+import v4_material_loader
 from character_dossier import load_dossier
-from v4_material_loader import inject_material
+
+importlib.reload(v4_material_loader)
 
 scene = poser.Scene()
 for mat in scene.CurrentFigure().Materials():
-    inject_material(mat, load_dossier()['Shaders'], None)
+    v4_material_loader.inject_material(mat, load_dossier()['Shaders'], None)
 scene.Draw()

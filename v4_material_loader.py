@@ -35,6 +35,8 @@ def inject_material(
     - DiffuseMathValue1 [color]: color_math for ColorTexture, leave undefined to input ColorTexture
     - DiffuseMathValue2 [color]: color_math for ColorTexture, leave undefined to input ColorTexture
     - DiffuseMathName [str]: a visible name for the color_math node
+    - Glossy [float]: Cycles only
+    - GlossyRoughness [float]: Cycles only
     - OpacityTexture [str-path]
     - Roughness [float]
     - Specular [color]
@@ -86,6 +88,7 @@ def inject_material(
 
     shader_name, shader = get_shader(mat_name, manifest)
 
+    # Modes
     chosen_mode = 0
     if user_choices is None:
         if 'DefaultMode' in shader:
@@ -106,6 +109,16 @@ def inject_material(
                     user_choices.add(choice)
                     chosen_mode = shader['Modes'].index(choice)
 
+    # color
+    color = (1, 1, 1)
+    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Invis', 'Pubic_Hair', 'Preview']:
+        color = (0, 0, 0)
+    elif 'Color' in shader:
+        color = easy_color(get_value_for_mat(shader['Color'], mat_name, chosen_mode, color))
+    elif mat_name in ['6_Eyelash']:  # do not merge into the above list
+        color = (0, 0, 0)
+
+    # color texture
     diffuse_texture: Optional[str] = None
     diffuse_math_argument, diffuse_math_value1, diffuse_math_value2, diffuse_math_name = None, None, None, None
     diffuse_hue, diffuse_saturation, diffuse_brightness = None, None, None
@@ -140,39 +153,93 @@ def inject_material(
                            float(diffuse_saturation) if diffuse_saturation is not None else 1,
                            float(diffuse_brightness) if diffuse_brightness is not None else 1)
 
+    # opacity texture
     opacity_texture: Optional[str] = None
     if 'OpacityTexture' in shader:
         opacity_texture = get_value_for_mat(shader['OpacityTexture'], mat_name, chosen_mode, None)
 
-    bump_texture: Optional[str] = None
-    if 'BumpTexture' in shader:
-        bump_texture = get_value_for_mat(shader['BumpTexture'], mat_name, chosen_mode, None)
-
-    # -----------------------PhysicalSurface--------------------------
-
-    # PhysicalSurface : Color
-    color = (1, 1, 1)
-    if mat_name in ['1_Eyebrow', '5_Cornea', '5_Pupil', 'Invis', 'Pubic_Hair', 'Preview']:
-        color = (0, 0, 0)
-    elif 'Color' in shader:
-        color = easy_color(get_value_for_mat(shader['Color'], mat_name, chosen_mode, color))
-    elif mat_name in ['6_Eyelash']:  # do not merge into the above list
-        color = (0, 0, 0)
-    phs.InputByInternalName('Color').SetColor(*color)
-
-    # PhysicalSurface : Transparency
+    # opacity
     trans = 0
     if mat_name in ['5_Cornea', '7_EyeSurface', '7_Tear', 'Invis', 'Pubic_Hair', 'Preview'] or \
             opacity_texture is not None:
         trans = 1
+
+    # diffuse roughness
+    rough = 0
+    if 'Roughness' in shader:
+        rough = float(get_value_for_mat(shader['Roughness'], mat_name, chosen_mode, rough))
+
+    # metallic
+    metal = 0
+    if mat_name in ['7_EyeSurface', '7_Tear']:
+        if mat_name == '7_EyeSurface':
+            metal = 0.04
+        elif mat_name == '7_Tear':
+            metal = 0.1
+
+    # bump
+    bump = 0
+    if 'Bump' in shader:
+        bump = float(get_value_for_mat(shader['Bump'], mat_name, chosen_mode, bump)) * 0.3937
+
+    # bump texture
+    bump_texture: Optional[str] = None
+    if 'BumpTexture' in shader:
+        bump_texture = get_value_for_mat(shader['BumpTexture'], mat_name, chosen_mode, None)
+
+    # SSS radii
+    sss_radii = None
+    if 'ScatterRadius' in shader:
+        if shader_name == 'Eyes' and mat_name != '5_Sclera':
+            pass
+        else:
+            sss_radii = get_value_for_mat(shader['ScatterRadius'], mat_name, chosen_mode, None)
+    elif mat_name == '5_Cornea':
+        eyes_shader = get_shader('5_Sclera', manifest)[1]
+        if 'ScatterRadius' in eyes_shader:
+            sss_radii = get_value_for_mat(
+                eyes_shader['ScatterRadius'], '5_Sclera', chosen_mode, None)
+
+    # SSS scale
+    sss_scale = None
+    if 'ScatterScale' in shader:
+        if shader_name == 'Eyes' and mat_name != '5_Sclera':
+            pass
+        else:
+            sss_scale = get_value_for_mat(shader['ScatterScale'], mat_name, chosen_mode, None)
+    elif mat_name == '5_Cornea':
+        eyes_shader = get_shader('5_Sclera', manifest)[1]
+        if 'ScatterScale' in eyes_shader:
+            sss_scale = get_value_for_mat(
+                eyes_shader['ScatterScale'], '5_Sclera', chosen_mode, None)
+
+    # SSS group
+    sss_group = 1
+    if mat_name in ['3_Fingernail', '3_Toenail']:
+        sss_group = 2
+    elif mat_name in ['5_Cornea', '5_Sclera']:
+        sss_group = 3
+    elif mat_name in ['4_Gums', '4_InnerMouth', '4_Teeth', '4_Tongue']:
+        sss_group = 4
+
+    # glossy
+    glossy: Optional[Tuple] = None
+    glossy_roughness: Optional[float] = None
+    if 'Glossy' in shader:
+        glossy = get_value_for_mat(shader['Glossy'], mat_name, chosen_mode, None)
+        glossy_roughness = get_value_for_mat(shader['GlossyRoughness'], mat_name, chosen_mode, None)
+
+    # -----------------------PhysicalSurface--------------------------
+
+    # PhysicalSurface : Color
+    phs.InputByInternalName('Color').SetColor(*color)
+
+    # PhysicalSurface : Transparency
     phs.InputByInternalName('Transparency').SetFloat(trans)
     if opacity_texture is not None:
         phs.InputByInternalName('TransparencyMode').SetFloat(1)
 
     # PhysicalSurface : Roughness
-    rough = 0
-    if 'Roughness' in shader:
-        rough = float(get_value_for_mat(shader['Roughness'], mat_name, chosen_mode, rough))
     phs.InputByInternalName('Roughness').SetFloat(rough)
 
     # PhysicalSurface : Specular
@@ -186,35 +253,15 @@ def inject_material(
     phs.InputByInternalName('Specular').SetColor(*spec)
 
     # PhysicalSurface : Metallic
-    if mat_name in ['7_EyeSurface', '7_Tear']:
-        metal = 0
-        if mat_name == '7_EyeSurface':
-            metal = 0.04
-        elif mat_name == '7_Tear':
-            metal = 0.1
-        phs.InputByInternalName('Metallic').SetFloat(metal)
+    phs.InputByInternalName('Metallic').SetFloat(metal)
 
     # PhysicalSurface : Emission
     phs.InputByInternalName('Emission').SetColor(0, 0, 0)
 
     # PhysicalSurface : Bump
-    bump = 0
-    if 'Bump' in shader:
-        bump = float(get_value_for_mat(shader['Bump'], mat_name, chosen_mode, bump)) * 0.3937
     phs.InputByInternalName('Bump').SetFloat(bump)
 
     # PhysicalSurface : SSS Radii
-    sss_radii = None
-    if 'ScatterRadius' in shader:
-        if shader_name == 'Eyes' and mat_name != '5_Sclera':
-            pass
-        else:
-            sss_radii = get_value_for_mat(shader['ScatterRadius'], mat_name, chosen_mode, None)
-    elif mat_name == '5_Cornea':
-        eyes_shader = get_shader('5_Sclera', manifest)[1]
-        if 'ScatterRadius' in eyes_shader:
-            sss_radii = get_value_for_mat(
-                eyes_shader['ScatterRadius'], '5_Sclera', chosen_mode, None)
     if sss_radii is not None:
         spl = sss_radii.split(',')
         phs.InputByInternalName('ScatterDistR').SetFloat(float(spl[0].strip()))
@@ -222,28 +269,11 @@ def inject_material(
         phs.InputByInternalName('ScatterDistB').SetFloat(float(spl[2].strip()))
 
     # PhysicalSurface : SSS Scale
-    sss_scale = None
-    if 'ScatterScale' in shader:
-        if shader_name == 'Eyes' and mat_name != '5_Sclera':
-            pass
-        else:
-            sss_scale = get_value_for_mat(shader['ScatterScale'], mat_name, chosen_mode, None)
-    elif mat_name == '5_Cornea':
-        eyes_shader = get_shader('5_Sclera', manifest)[1]
-        if 'ScatterScale' in eyes_shader:
-            sss_scale = get_value_for_mat(
-                eyes_shader['ScatterScale'], '5_Sclera', chosen_mode, None)
     if sss_scale is not None:
         phs.InputByInternalName('Scatter_Scale').SetFloat(float(sss_scale))
 
     # PhysicalSurface : SSS Defaults
-    phs_sss_group = phs.InputByInternalName('Scatter_Group')
-    if mat_name in ['3_Fingernail', '3_Toenail']:
-        phs_sss_group.SetFloat(2)
-    elif mat_name in ['5_Cornea', '5_Sclera']:
-        phs_sss_group.SetFloat(3)
-    elif mat_name in ['4_Gums', '4_InnerMouth', '4_Teeth', '4_Tongue']:
-        phs_sss_group.SetFloat(4)
+    phs.InputByInternalName('Scatter_Group').SetFloat(sss_group)
     phs.InputByInternalName('SSSMethod').SetFloat(1)
 
     # -------------------------Dependencies---------------------------
@@ -255,7 +285,8 @@ def inject_material(
         dif_hsv.InputByInternalName('Hue').SetFloat(diffuse_hsv[0])
         dif_hsv.InputByInternalName('Saturation').SetFloat(diffuse_hsv[1])
         dif_hsv.InputByInternalName('Value').SetFloat(diffuse_hsv[2])
-        dif_hsv.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Color'))
+        dif_hsv_out = dif_hsv.OutputByInternalName('Color')
+        dif_hsv_out.ConnectToInput(phs.InputByInternalName('Color'))
         node_column_2_y += 130
 
     if diffuse_math_argument is not None:
@@ -348,14 +379,56 @@ def inject_material(
 
     # -------------------------Cycles-Shaders-------------------------
 
-    if mat_name in ['7_Tear', '7_EyeSurface']:
+    if mat_name in ['7_Tear', '7_EyeSurface'] or glossy is not None:
         phs.SetInputsCollapsed(True)
         cyc = tree.CreateNode('CyclesSurface')
         cyc.SetLocation(node_column_1_x, node_column_1_y)
         tree.SetRendererRootNode(poser.kRenderEngineCodeSUPERFLY, cyc)
         node_column_1_y += 130
 
-        if mat_name == '7_EyeSurface':
+        if glossy is not None:
+            clo1 = tree.CreateNode('ccl_AddClosure')
+            clo1.SetLocation(node_column_1_x, node_column_1_y)
+            clo1.OutputByInternalName('Closure').ConnectToInput(cyc.InputByInternalName('Surface'))
+
+            if 'ScatterRadius' not in shader:
+                color_bsdf = tree.CreateNode('ccl_DiffuseBsdf')
+                color_bsdf.SetLocation(node_column_3_x, node_column_3_y)
+                color_bsdf.InputByInternalName('Color').SetColor(*color)
+                color_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure1'))
+                node_column_3_y += 150
+
+            else:
+                color_bsdf = tree.CreateNode('ccl_SubsurfaceScattering')
+                color_bsdf.SetLocation(node_column_3_x, node_column_3_y)
+                color_bsdf.InputByInternalName('Color').SetColor(*color)
+                if sss_scale is not None:
+                    color_bsdf.InputByInternalName('Scale').SetFloat(float(sss_scale))
+                color_bsdf.InputByInternalName('Radius') \
+                    .SetColor(float(spl[0].strip()), float(spl[1].strip()), float(spl[2].strip()))
+                color_bsdf.InputByInternalName('Scatter Group ID').SetFloat(sss_group)
+                color_bsdf.InputByInternalName('Method').SetFloat(0)
+                color_bsdf.OutputByInternalName('BSSRDF').ConnectToInput(clo1.InputByInternalName('Closure1'))
+                node_column_3_y += 210
+
+            diffuse_color = None
+            if diffuse_hsv is not None:
+                diffuse_color = dif_hsv_out
+            elif diffuse_math_argument is not None:
+                diffuse_color = dif_math_out
+            elif diffuse_texture is not None:
+                diffuse_color = dif_map_out
+            if diffuse_color is not None:
+                diffuse_color.ConnectToInput(color_bsdf.InputByInternalName('Color'))
+
+            glossy_bsdf = tree.CreateNode('ccl_GlossyBsdf')
+            glossy_bsdf.SetLocation(node_column_3_x, node_column_3_y)
+            glossy_bsdf.InputByInternalName('Color').SetColor(*easy_color(glossy))
+            if glossy_roughness is not None:
+                glossy_bsdf.InputByInternalName('Roughness').SetFloat(float(glossy_roughness))
+            glossy_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure2'))
+
+        elif mat_name == '7_EyeSurface':
             clo1 = tree.CreateNode('ccl_MixClosure')
             clo1.SetLocation(node_column_1_x, node_column_1_y)
             clo1.OutputByInternalName('Closure').ConnectToInput(cyc.InputByInternalName('Surface'))

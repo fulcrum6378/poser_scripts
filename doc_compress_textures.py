@@ -4,7 +4,7 @@ import shutil
 from PIL import Image
 from typing import Dict, Set
 
-from collect_required_content import collect_pz3_required_paths
+from doc_collect_required_content import collect_pz3_required_paths
 
 scene = poser.Scene()
 revert: bool = False

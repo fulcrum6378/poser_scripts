@@ -3,7 +3,7 @@ import poser
 from PIL import Image
 from typing import Dict
 
-from collect_required_content import collect_pz3_required_paths
+from doc_collect_required_content import collect_pz3_required_paths
 
 # initial parameters
 required_paths = collect_pz3_required_paths(poser.Scene().DocumentPath())[0]

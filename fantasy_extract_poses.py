@@ -12,7 +12,12 @@ def get_pose_dir(album_id: str, album_name: str) -> str:
     return os.path.join(runtime_dir, 'Runtime', 'Libraries', 'Pose', f'{album_id} {album_name}')
 
 
-def extract_all(scene: poser.SceneType, pose_dir: str, album_id: str, render_id: str) -> int:
+def extract_all(
+        scene: poser.SceneType,
+        pose_dir: str,
+        album_id: str,
+        render_id: str
+) -> int:
     if not os.path.isdir(pose_dir):
         os.mkdir(pose_dir)
     i = 0

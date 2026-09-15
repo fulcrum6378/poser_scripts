@@ -40,6 +40,8 @@ def inject_material(
     - OpacityTexture [str-path]
     - Roughness [float]
     - Specular [color]
+    - Metallic [float]
+    - Emissive [float]
     - Bump [float]
     - BumpTexture [str-path]
     - BumpMapIsColorTexture [bool]
@@ -176,6 +178,13 @@ def inject_material(
             metal = 0.04
         elif mat_name == '7_Tear':
             metal = 0.1
+    elif 'Metallic' in shader:
+        metal = float(get_value_for_mat(shader['Metallic'], mat_name, chosen_mode, metal))
+
+    # emissive
+    emissive = 0
+    if 'Emissive' in shader:
+        emissive = float(get_value_for_mat(shader['Emissive'], mat_name, chosen_mode, emissive))
 
     # bump
     bump = 0
@@ -256,7 +265,11 @@ def inject_material(
     phs.InputByInternalName('Metallic').SetFloat(metal)
 
     # PhysicalSurface : Emission
-    phs.InputByInternalName('Emission').SetColor(0, 0, 0)
+    emiss = (0, 0, 0)
+    if emissive != 0:
+        emiss = (1, 1, 1)
+        phs.InputByInternalName('EmissionStrength').SetFloat(emissive)
+    phs.InputByInternalName('Emission').SetColor(*emiss)
 
     # PhysicalSurface : Bump
     phs.InputByInternalName('Bump').SetFloat(bump)
@@ -287,6 +300,8 @@ def inject_material(
         dif_hsv.InputByInternalName('Value').SetFloat(diffuse_hsv[2])
         dif_hsv_out = dif_hsv.OutputByInternalName('Color')
         dif_hsv_out.ConnectToInput(phs.InputByInternalName('Color'))
+        if emiss != (0, 0, 0):
+            dif_hsv_out.ConnectToInput(phs.InputByInternalName('Emission'))
         node_column_2_y += 130
 
     if diffuse_math_argument is not None:
@@ -311,6 +326,8 @@ def inject_material(
         dif_math_out = dif_math.OutputByInternalName('Color')
         if diffuse_hsv is None:
             dif_math_out.ConnectToInput(phs.InputByInternalName('Color'))
+            if emiss != (0, 0, 0):
+                dif_math_out.ConnectToInput(phs.InputByInternalName('Emission'))
         else:
             dif_math_out.ConnectToInput(dif_hsv.InputByInternalName('Color'))
         node_column_2_y += 114
@@ -330,6 +347,8 @@ def inject_material(
             dif_map_out.ConnectToInput(dif_hsv.InputByInternalName('Color'))
         else:
             dif_map_out.ConnectToInput(phs.InputByInternalName('Color'))
+            if emiss != (0, 0, 0):
+                dif_map_out.ConnectToInput(phs.InputByInternalName('Emission'))
         if 'BumpMapIsColorTexture' in shader:
             dif_map_out.ConnectToInput(phs.InputByInternalName('Bump'))
         dif_map.SetInputsCollapsed(True)

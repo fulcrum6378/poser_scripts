@@ -11,6 +11,7 @@
       <w>emiss</w>
       <w>espinela</w>
       <w>injdeltas</w>
+      <w>mastersynched</w>
       <w>morphforms</w>
       <w>pbms</w>
       <w>phms</w>
@@ -18,7 +19,10 @@
       <w>vastuslateralus</w>
       <w>vastusmedialus</w>
       <w>xrot</w>
+      <w>xscale</w>
       <w>yrot</w>
+      <w>ytran</w>
+      <w>ytranslate</w>
       <w>zrot</w>
     </words>
   </dictionary>

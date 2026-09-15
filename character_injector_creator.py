@@ -39,7 +39,7 @@ def create_injector(
     pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', '!' + figure_name)
     if not os.path.isdir(pz2_dir):
         os.makedirs(pz2_dir)
-    pz2_path = os.path.join(pz2_dir, 'Test.pz2')
+    pz2_path = os.path.join(pz2_dir, f'Test{"-DS" if for_ds else ""}.pz2')
     pz2 = open(pz2_path, 'w', encoding='cp1252', newline='\n')
 
     # determine figure type
@@ -57,23 +57,76 @@ def create_injector(
 
     if figure_type == 'Victoria 4':
         print('// Remove V4 Base Male Morphs', file=pz2)
-        include_daz_pz2('Base', 'DST', 'Strength', True)
-        include_daz_pz2('Base', 'FBM', 'Male', True)
-        include_daz_pz2('Base', 'FBM', 'MaleNS', True)
-        include_daz_pz2('Base', 'FHM', 'George', True)
-        include_daz_pz2('Base', 'FHM', 'John', True)
-        include_daz_pz2('Base', 'FHM', 'Paul', True)
+        rem_deltas('Base', 'DST', 'Strength')
+        rem_deltas('Base', 'FBM', 'Male')
+        rem_deltas('Base', 'FBM', 'MaleNS')
+        rem_deltas('Base', 'FHM', 'George')
+        rem_deltas('Base', 'FHM', 'John')
+        rem_deltas('Base', 'FHM', 'Paul')
         print('', file=pz2)
+
+    print('// V4 Control Morphs++', file=pz2)
+    for ctrl in [
+        'ArmsFront-Back', 'ArmsUp-Down', 'EyesSide-Side', 'EyesUp-Down', 'HandGrasp', 'HandSpread',
+        'IndexGrasp', 'lArmDown', 'lArmUp', 'MiddleGrasp', 'NeckHeadBend', 'NeckHeadSide-Side',
+        'NeckHeadTwist', 'PinkyGrasp', 'rArmDown', 'rArmUp', 'RingGrasp', 'ShoulderShrug', 'ThumbGrasp',
+        'TorsoBend', 'TorsoSide-Side', 'TorsoTwist', 'WaistBend', 'WaistBendBack', 'WaistBendFront']:
+        inj_deltas('Morphs++', 'CTRL', ctrl)
+    print('', file=pz2)
+
+    # begin BODY
+    print('''
+
+actor BODY:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode General
+				{
+				groupNode Transforms
+					{
+					groupNode Rotation
+						{
+						collapsed 0
+						}
+					groupNode Scale
+						{
+						collapsed 0
+						}
+					}
+				}
+			groupNode Morphforms
+				{
+				groupNode Morphs++
+					{
+					collapsed 0
+					}
+				}''', file=pz2)
+    # TODO Special if exists
+    print('\n			}', file=pz2)
+
+    # end BODY
+    print('''		}
+	}
+''', file=pz2)
 
     # end writing
     print('}', file=pz2)
     pz2.close()
 
 
-def include_daz_pz2(group: str, type: str, name: str, remove: bool) -> str:
+def inj_deltas(group: str, type: str, name: str) -> str:
     global pz2, figure_type
-    print(f'readScript "Runtime:Libraries:!DAZ:{figure_type}:Deltas:{group}:'
-          f'{"InjDeltas" if not remove else "RemDeltas"}.{type}{name}.pz2"', file=pz2)
+    print(f'readScript "Runtime:Libraries:!DAZ:{figure_type}:Deltas:{group}:InjDeltas.{type}{name}.pz2"',
+          file=pz2)
+
+
+def rem_deltas(group: str, type: str, name: str) -> str:
+    global pz2, figure_type
+    print(f'readScript "Runtime:Libraries:!DAZ:{figure_type}:Deltas:{group}:RemDeltas.{type}{name}.pz2"',
+          file=pz2)
 
 
 if __name__ == '__main__':

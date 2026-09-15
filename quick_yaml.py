@@ -1,5 +1,3 @@
-from typing import List
-
 def load(text: str):
     global _yml
     _yml = text.split('\n')
@@ -35,11 +33,15 @@ def _parse_model(line: int):
 
         # if it is a single value:
         if not l.endswith(':'):
-            if isinstance(model, list):
-                model.append(l.split('- ', 1)[1].strip())
-            elif ': ' in l:
+            if ': ' in l:
+                if isinstance(model, list):
+                    model = dict(model)
                 spl = l.split(': ', 1)
+                if spl[0].startswith('- '):
+                    spl[0] = spl[0][2:]
                 model[spl[0]] = spl[1]
+            elif isinstance(model, list):
+                model.append(l.split('- ', 1)[1].strip())
             else:
                 model[l] = None
             line += 1
@@ -47,7 +49,7 @@ def _parse_model(line: int):
         # if it is a key:
         else:
             if isinstance(model, list):
-                old_model: List = model.copy()
+                old_model = model.copy()
                 model = dict()
                 for item in old_model:
                     model[item] = None

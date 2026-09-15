@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Iterable, List, Optional
 
 import character_dossier
 
@@ -53,29 +53,120 @@ def create_injector(
     print('{\n\nversion\n	{\n	number 14\n	}\n', file=pz2)
     print('runPythonScript "Runtime:Python:poserScripts:MAHDI:_' + figure_name.lower() + '_v' + \
           version.replace('.', '_') + '.py"', file=pz2)
-    print('\n', file=pz2)
+    print('', file=pz2)
 
+    # V4/M4 Base Morphs
     if figure_type == 'Victoria 4':
-        print('// Remove V4 Base Male Morphs', file=pz2)
+        print('\n// Remove V4 Base Male Morphs', file=pz2)
         rem_deltas('Base', 'DST', 'Strength')
         rem_deltas('Base', 'FBM', 'Male')
         rem_deltas('Base', 'FBM', 'MaleNS')
         rem_deltas('Base', 'FHM', 'George')
         rem_deltas('Base', 'FHM', 'John')
         rem_deltas('Base', 'FHM', 'Paul')
-        print('', file=pz2)
+        figure_type_abbr = 'V4'
+    else:
+        figure_type_abbr = 'M4'
 
-    print('// V4 Control Morphs++', file=pz2)
+    # V4/M4 Body Morphs++
+    if 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
+            'Morphs++' in dossier['Body']['Morphs | Shapes']:
+
+        if 'Full Body' in dossier['Body']['Morphs | Shapes']['Morphs++']:
+            print(f'\n// {figure_type_abbr} Full Body Morphs++', file=pz2)
+            for fbm in sorted(list(dossier['Body']['Morphs | Shapes']['Morphs++']['Full Body'].keys())):
+                inj_deltas('Morphs++', 'FBM', fbm)
+
+        dynamic_pbms: Iterable[str] = {
+            'BicepsFlex', 'CalvesFlex', 'FeetForShoe', 'GluteFlexL', 'GluteFlexR', 'Inhale', 'ToeBigCurl',
+            'ToeBigSide-Side', 'ToeBigUp-Down', 'ToesPointed', 'ToesSmallIn', 'ToesSmallUp-Down'}
+        if figure_type == 'Victoria 4' and figure_name != 'LUNA':
+            dynamic_pbms.update([
+                'BreastDownL', 'BreastDownR', 'BreastInL', 'BreastInR', 'BreastOutL', 'BreastOutR',
+                'BreastUpL', 'BreastUpR', 'BreastsCleavage', 'BreastsDiameter', 'BreastsDroop',
+                'BreastsFlatten', 'BreastsHangForward', 'BreastsNatural', 'BreastsPerk',  # 'NailsLength',
+                'StomachDepth'
+            ])
+
+        static_pbms: List[str] = []
+        contextual_pbms: List[str] = []
+        for pbm_group_name, pbm_group in dossier['Body']['Morphs | Shapes']['Morphs++'].items():
+            if pbm_group_name == 'Full Body': continue
+            for pbm, pbm_node in pbm_group.items():
+                if isinstance(pbm_node, dict) and 'N' not in pbm_node.keys():
+                    contextual_pbms.append(pbm)
+                else:
+                    static_pbms.append(pbm)
+                if pbm in dynamic_pbms:
+                    dynamic_pbms.remove(pbm)
+
+        if len(static_pbms) != 0:
+            print(f'\n// {figure_type_abbr} Partial Body Morphs++ (static)', file=pz2)
+            static_pbms.sort()
+            for pbm in static_pbms:
+                inj_deltas('Morphs++', 'PBM', pbm)
+
+        if len(contextual_pbms) != 0:
+            print(f'\n// {figure_type_abbr} Partial Body Morphs++ (contextual)', file=pz2)
+            contextual_pbms.sort()
+            for pbm in contextual_pbms:
+                inj_deltas('Morphs++', 'PBM', pbm)
+
+        dynamic_pbms = sorted(list(dynamic_pbms))
+        if len(dynamic_pbms) != 0:
+            print(f'\n// {figure_type_abbr} Partial Body Morphs++ (dynamic)', file=pz2)
+            for pbm in dynamic_pbms:
+                inj_deltas('Morphs++', 'PBM', pbm)
+
+    # V4/M4 Head Morphs++
+    if 'Head' in dossier and 'Morphs | Shapes' in dossier['Head'] and \
+            'Morphs++' in dossier['Head']['Morphs | Shapes']:
+
+        static_phms: List[str] = []
+        contextual_phms: List[str] = []
+        phm_groups = dossier['Head']['Morphs | Shapes']['Morphs++']
+        if 'Eyes' in dossier['Head']['Morphs | Shapes']['Morphs++'] and \
+                'Eyeballs' in dossier['Head']['Morphs | Shapes']['Morphs++']['Eyes']:
+            phm_groups['Eyeballs'] = dossier['Head']['Morphs | Shapes']['Morphs++']['Eyes']['Eyeballs']
+        for phm_group in phm_groups.values():
+            for phm, phm_node in phm_group.items():
+                if phm == 'Eyeballs': continue
+                if isinstance(phm_node, dict) and 'N' not in phm_node.keys():
+                    contextual_phms.append(phm)
+                else:
+                    static_phms.append(phm)
+
+        if len(static_phms) != 0:
+            print('\n// V4 Partial Head Morphs++ (static)', file=pz2)
+            static_phms.sort()
+            for phm in static_phms:
+                inj_deltas('Morphs++', 'PHM', phm)
+
+        if len(contextual_phms) != 0:
+            print('\n// V4 Partial Head Morphs++ (contextual)', file=pz2)
+            contextual_phms.sort()
+            for phm in contextual_phms:
+                inj_deltas('Morphs++', 'PHM', phm)
+
+    # V4/M4 Control Morphs++
+    print(f'\n// {figure_type_abbr} Control Morphs++', file=pz2)
     for ctrl in [
         'ArmsFront-Back', 'ArmsUp-Down', 'EyesSide-Side', 'EyesUp-Down', 'HandGrasp', 'HandSpread',
         'IndexGrasp', 'lArmDown', 'lArmUp', 'MiddleGrasp', 'NeckHeadBend', 'NeckHeadSide-Side',
         'NeckHeadTwist', 'PinkyGrasp', 'rArmDown', 'rArmUp', 'RingGrasp', 'ShoulderShrug', 'ThumbGrasp',
         'TorsoBend', 'TorsoSide-Side', 'TorsoTwist', 'WaistBend', 'WaistBendBack', 'WaistBendFront']:
         inj_deltas('Morphs++', 'CTRL', ctrl)
-    print('', file=pz2)
+
+    # V4/M4 Elite Morphs
+    if 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
+            'Elite' in dossier['Body']['Morphs | Shapes']:
+        print(f'\n// {figure_type_abbr} Elite Morphs', file=pz2)
+        for morph in dossier['Body']['Morphs | Shapes']['Elite'].keys():
+            inj_deltas('Elite', 'FBM' if morph.endswith('Body') else 'PBM', morph)
 
     # begin BODY
     print('''
+
 
 actor BODY:1
 	{

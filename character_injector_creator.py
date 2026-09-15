@@ -1,5 +1,5 @@
 import os
-from typing import Iterable, List, Optional
+from typing import Any, Iterable, List, Optional
 
 import character_dossier
 
@@ -47,6 +47,7 @@ def create_injector(
     figure_type = {
         'Victoria 4': 'Victoria 4',
         'Victoria 4.2': 'Victoria 4',
+        'Michael 4': 'Michael 4',
     }[figure_type]
 
     # begin writing
@@ -54,6 +55,8 @@ def create_injector(
     print('runPythonScript "Runtime:Python:poserScripts:MAHDI:_' + figure_name.lower() + '_v' + \
           version.replace('.', '_') + '.py"', file=pz2)
     print('', file=pz2)
+    body_morphs: Dict[str, Any] = {}
+    head_morphs: Dict[str, Any] = {}
 
     # V4/M4 Base Morphs
     if figure_type == 'Victoria 4':
@@ -76,11 +79,12 @@ def create_injector(
             print(f'\n// {figure_type_abbr} Full Body Morphs++', file=pz2)
             for fbm in sorted(list(dossier['Body']['Morphs | Shapes']['Morphs++']['Full Body'].keys())):
                 inj_deltas('Morphs++', 'FBM', fbm)
+                body_morphs['FBM' + fbm] = dossier['Body']['Morphs | Shapes']['Morphs++']['Full Body'][fbm]
 
         dynamic_pbms: Iterable[str] = {
             'BicepsFlex', 'CalvesFlex', 'FeetForShoe', 'GluteFlexL', 'GluteFlexR', 'Inhale', 'ToeBigCurl',
             'ToeBigSide-Side', 'ToeBigUp-Down', 'ToesPointed', 'ToesSmallIn', 'ToesSmallUp-Down'}
-        if figure_type == 'Victoria 4' and figure_name != 'LUNA':
+        if figure_type == 'Victoria 4':
             dynamic_pbms.update([
                 'BreastDownL', 'BreastDownR', 'BreastInL', 'BreastInR', 'BreastOutL', 'BreastOutR',
                 'BreastUpL', 'BreastUpR', 'BreastsCleavage', 'BreastsDiameter', 'BreastsDroop',
@@ -97,6 +101,7 @@ def create_injector(
                     contextual_pbms.append(pbm)
                 else:
                     static_pbms.append(pbm)
+                body_morphs['PBM' + pbm] = pbm_node
                 if pbm in dynamic_pbms:
                     dynamic_pbms.remove(pbm)
 
@@ -135,6 +140,7 @@ def create_injector(
                     contextual_phms.append(phm)
                 else:
                     static_phms.append(phm)
+                head_morphs['PHM' + phm] = phm_node
 
         if len(static_phms) != 0:
             print('\n// V4 Partial Head Morphs++ (static)', file=pz2)
@@ -161,8 +167,56 @@ def create_injector(
     if 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
             'Elite' in dossier['Body']['Morphs | Shapes']:
         print(f'\n// {figure_type_abbr} Elite Morphs', file=pz2)
-        for morph in dossier['Body']['Morphs | Shapes']['Elite'].keys():
-            inj_deltas('Elite', 'FBM' if morph.endswith('Body') else 'PBM', morph)
+        for morph_name, morph_values in dossier['Body']['Morphs | Shapes']['Elite'].items():
+            morph_type = 'FBM' if morph_name.endswith('Body') else 'PBM'
+            inj_deltas('Elite', morph_type, morph_name)
+            body_morphs[morph_type + morph_name] = morph_values
+
+    # V4/M4 Stephanie Morphs
+    if figure_type == 'Victoria 4' and 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
+            'Stephanie 4' in dossier['Body']['Morphs | Shapes']:
+        static_pbms: List[str] = []
+        contextual_pbms: List[str] = []
+        for pbm_group_name, pbm_group in dossier['Body']['Morphs | Shapes']['Stephanie 4'].items():
+            if pbm_group_name == 'Full Body': continue
+            for pbm, pbm_node in pbm_group.items():
+                if isinstance(pbm_node, dict) and 'N' not in pbm_node.keys():
+                    contextual_pbms.append(pbm)
+                else:
+                    static_pbms.append(pbm)
+                body_morphs['PBM' + pbm] = pbm_node
+
+        if len(static_pbms) != 0:
+            print(f'\n// Stephanie 4 Morphs (static)', file=pz2)
+            static_pbms.sort()
+            for pbm in static_pbms:
+                inj_deltas('Stephanie 4', 'PBM', pbm)
+
+        if len(contextual_pbms) != 0:
+            print(f'\n// Stephanie 4 Morphs (contextual)', file=pz2)
+            contextual_pbms.sort()
+            for pbm in contextual_pbms:
+                inj_deltas('Stephanie 4', 'PBM', pbm)
+
+    # V4 Muscle Morphs
+    if figure_type == 'Victoria 4' and 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
+            'Muscle' in dossier['Body']['Morphs | Shapes']:
+        print(f'\n// V4 Muscle Morphs', file=pz2)
+        for morph_name, morph_values in dossier['Body']['Morphs | Shapes']['Muscle'].items():
+            inj_deltas('Muscle', 'PBM', morph_name)
+            body_morphs['PBM' + morph_name] = morph_values
+    print('', file=pz2)
+
+    if 'XandM Jaw-dropper Breast Morphs' in dossier['Figure']:
+        print('\n// XandM Jaw-Dropper Breast Morphs', file=pz2)
+        if not for_ds:
+            print('readScript "Runtime:Libraries:Pose:XandM Curves+:Breast Morphs_Jaw-dropper:'
+                  '!INJ JawDropper Breast Morphs.pz2"', file=pz2)
+        else:
+            print('readScript "Runtime:Libraries:Pose:XandM Curves+:Breast Morphs_Jaw-dropperDAZ:'
+                  '!!JawDropper Pre-Inject.pz2"', file=pz2)
+            print('readScript "Runtime:Libraries:Pose:XandM Curves+:Breast Morphs_Jaw-dropperDAZ:'
+                  '!INJ JawDropper Breast Morphs.pz2"', file=pz2)
 
     # begin BODY
     print('''
@@ -195,8 +249,43 @@ actor BODY:1
 					collapsed 0
 					}
 				}''', file=pz2)
-    # TODO Special if exists
-    print('\n			}', file=pz2)
+    if 'Special' in dossier['Body']:
+        print('			groupNode Special\n				{', file=pz2)
+        for parm in dossier['Body']['Special'].values():
+            print('				parmNode ' + parm, file=pz2)
+    print('				}', file=pz2)
+    print('			}', file=pz2)
+
+    # write body parameters
+    body = figure.Actor('BODY')
+    for morph_name, morph_values in body_morphs.items():
+        parm = body.Parameter(morph_name)
+        print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
+        print('			{', file=pz2)
+        value = None
+        value_ops = {}
+        if isinstance(morph_values, dict):
+            for k, v in morph_values.items():
+                if k == 'N':
+                    value = morph_values['N']
+                else:
+                    value_ops[dossier['Body']['Special'][k]] = v
+        else:
+            value = morph_values
+        if value is not None:
+            print('''			initValue ''' + poser_float(value) + '''
+			keys
+				{
+				k  0  ''' + poser_float(value) + '''
+				}''', file=pz2)
+        if len(value_ops) != 0:
+            for k, v in value_ops.items():
+                print(f'''			valueOpDeltaAdd
+				Figure 1
+				BODY:1
+				{k}
+				deltaAddDelta {value_op_number(v)}''', file=pz2)
+        print('			}', file=pz2)
 
     # end BODY
     print('''		}
@@ -218,6 +307,16 @@ def rem_deltas(group: str, type: str, name: str) -> str:
     global pz2, figure_type
     print(f'readScript "Runtime:Libraries:!DAZ:{figure_type}:Deltas:{group}:RemDeltas.{type}{name}.pz2"',
           file=pz2)
+
+def poser_float(s: str) -> str:
+    fl = float(s.strip())
+    if fl % 1 == 0:
+        return str(fl).split('.')[0]
+    else:
+        return str(fl)
+
+def value_op_number(s: str) -> str:
+    return f'{s[-1] if s[-1] == "-" else ""}{poser_float(s.strip()[1:-2])}'
 
 
 if __name__ == '__main__':

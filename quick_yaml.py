@@ -31,28 +31,30 @@ def _parse_model(line: int):
             line += 1
             continue
 
+        # convert into dict if necessary
+        if isinstance(model, list) and (l.endswith(':') or ': ' in l):
+            old_model = model.copy()
+            model = dict()
+            for item in old_model:
+                model[item] = None
+
         # if it is a single value:
         if not l.endswith(':'):
-            if ': ' in l:
-                if isinstance(model, list):
-                    model = dict(model)
+            if isinstance(model, list):
+                model.append(l.split('- ', 1)[1].strip())
+            elif ': ' in l:
                 spl = l.split(': ', 1)
                 if spl[0].startswith('- '):
                     spl[0] = spl[0][2:]
                 model[spl[0]] = spl[1]
-            elif isinstance(model, list):
-                model.append(l.split('- ', 1)[1].strip())
             else:
+                if l.startswith('- '):
+                    l = l[2:]
                 model[l] = None
             line += 1
 
         # if it is a key:
         else:
-            if isinstance(model, list):
-                old_model = model.copy()
-                model = dict()
-                for item in old_model:
-                    model[item] = None
             key = l[:-1]
             if key.startswith('- '):
                 key = key[2:].strip()

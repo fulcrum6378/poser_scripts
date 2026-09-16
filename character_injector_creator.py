@@ -273,6 +273,14 @@ actor BODY:1
         print('			{', file=pz2)
         tweak_parm(morph_values, 1)
         print('			}', file=pz2)
+        if not parm.IsMorphTarget() and isinstance(morph_values, dict) and \
+                (len(morph_values) > 1 or list(morph_values.keys())[0] != 'N'):
+            for special_parm, special_value in morph_values.items():
+                if special_parm == 'N': continue
+                actor_name = get_actor_name_by_morph_name(morph_name)
+                if morph_name not in morphs[actor_name]:
+                    morphs[actor_name][morph_name] = {}
+                morphs[actor_name][morph_name][special_parm] = special_value
 
     # write custom body parameters
     for parm in dossier['Body']['Special'].values():
@@ -349,7 +357,14 @@ actor hip:1
     print('''				}
 			}''', file=pz2)
 
-    # hip yTranslate
+    # write DAZ hip parameters
+    for morph_name, morph_values in morphs['hip'].items():
+        print(f'		targetGeom {morph_name}', file=pz2)
+        print('			{', file=pz2)
+        tweak_parm(morph_values, 1)
+        print('			}', file=pz2)
+
+    # hip Y position
     print('		translateY ytran\n			{', file=pz2)
     tweak_parm(dossier['Hip']['yTranslate'], 0.0038149297967307)
     print('			}', file=pz2)
@@ -385,6 +400,13 @@ actor abdomen:1
 				}
 			}''', file=pz2)
 
+    # write DAZ chest parameters
+    for morph_name, morph_values in morphs['abdomen'].items():
+        print(f'		targetGeom {morph_name}', file=pz2)
+        print('			{', file=pz2)
+        tweak_parm(morph_values, 1)
+        print('			}', file=pz2)
+
     # end abdomen
     print('		}\n	}', file=pz2)
 
@@ -405,6 +427,13 @@ actor abdomen:1
 					}
 				}''', file=pz2)
     print('''			}''', file=pz2)
+
+    # write DAZ chest parameters
+    for morph_name, morph_values in morphs['chest'].items():
+        print(f'		targetGeom {morph_name}', file=pz2)
+        print('			{', file=pz2)
+        tweak_parm(morph_values, 1)
+        print('			}', file=pz2)
 
     # end chest
     print('		}\n	}', file=pz2)
@@ -641,6 +670,24 @@ def poser_float(s: str, multiplier: float) -> str:
 
 def value_op_number(s: str, multiplier: float) -> str:
     return f'{s[-1] if s[-1] == "-" else ""}{poser_float(s.strip()[1:-2], multiplier)}'
+
+
+def get_actor_name_by_morph_name(morph_name: str) -> str:
+    if any_in_str(morph_name, ['Glutes']):
+        return 'hip'
+    elif morph_name in ['PBMWaistWidth', 'PBMLineaAlba']:
+        return 'abdomen'
+    elif any_in_str(morph_name, ['Breast', 'Areola', 'Nipple']):
+        return 'chest'
+    else:
+        raise Exception(f'What actor does this morph belong to? {morph_name}')
+
+
+def any_in_str(string: str, list: List[str]) -> bool:
+    for i in list:
+        if i in string:
+            return True
+    return False
 
 
 if __name__ == '__main__':

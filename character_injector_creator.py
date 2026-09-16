@@ -6,6 +6,8 @@ import character_dossier
 import importlib
 
 importlib.reload(character_dossier)
+TRANSLATION_FACTOR_HIP = 0.0038149298209603575  # synchronised with Espinela's hip
+TRANSLATION_FACTOR_HEAD = 0.0038125
 
 
 def create_injector(
@@ -52,9 +54,14 @@ def create_injector(
 
     # begin writing
     print('{\n\nversion\n	{\n	number 14\n	}\n', file=pz2)
+
+    # primary Python script
+    version = character_dossier.get_version_from_dossier_path(
+        character_dossier.get_latest_dossier_path(figure_name))
     print('runPythonScript "Runtime:Python:poserScripts:MAHDI:_' + figure_name.lower() + '_v' + \
           version.replace('.', '_') + '.py"', file=pz2)
     print('', file=pz2)
+
     morphs: Dict[str, Dict[str, Any]] = {
         'BODY': {},
         'hip': {},
@@ -265,23 +272,6 @@ actor BODY:1
     print('				}', file=pz2)
     print('			}', file=pz2)
 
-    # write DAZ body parameters
-    body = figure.Actor('BODY')
-    for morph_name, morph_values in morphs['BODY'].items():
-        parm = body.Parameter(morph_name)
-        print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
-        print('			{', file=pz2)
-        tweak_parm(morph_values, 1)
-        print('			}', file=pz2)
-        if not parm.IsMorphTarget() and isinstance(morph_values, dict) and \
-                (len(morph_values) > 1 or list(morph_values.keys())[0] != 'N'):
-            for special_parm, special_value in morph_values.items():
-                if special_parm == 'N': continue
-                actor_name = get_actor_name_by_morph_name(morph_name)
-                if morph_name not in morphs[actor_name]:
-                    morphs[actor_name][morph_name] = {}
-                morphs[actor_name][morph_name][special_parm] = special_value
-
     # write custom body parameters
     for parm in dossier['Body']['Special'].values():
         print('''		valueParm ''' + parm['Name'] + '''
@@ -302,6 +292,23 @@ actor BODY:1
 				}
 			interpStyleLocked 0
 			}''', file=pz2)
+
+    # write DAZ body parameters
+    body = figure.Actor('BODY')
+    for morph_name, morph_values in morphs['BODY'].items():
+        parm = body.Parameter(morph_name)
+        print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
+        print('			{', file=pz2)
+        tweak_parm(morph_values)
+        print('			}', file=pz2)
+        if not parm.IsMorphTarget() and isinstance(morph_values, dict) and \
+                (len(morph_values) > 1 or list(morph_values.keys())[0] != 'N'):
+            for special_parm, special_value in morph_values.items():
+                if special_parm == 'N': continue
+                actor_name = get_actor_name_by_morph_name(morph_name)
+                if morph_name not in morphs[actor_name]:
+                    morphs[actor_name][morph_name] = {}
+                morphs[actor_name][morph_name][special_parm] = special_value
 
     # body scale
     print('		propagatingScale scale\n			{', file=pz2)
@@ -354,6 +361,11 @@ actor hip:1
 					{
 					collapsed 0
 					}''', file=pz2)
+    if 'RectusFemorus' in dossier['Body']['Morphs | Shapes']['Muscle']:
+        print('''				groupNode Muscle
+					{
+					collapsed 0
+					}''', file=pz2)
     print('''				}
 			}''', file=pz2)
 
@@ -361,12 +373,12 @@ actor hip:1
     for morph_name, morph_values in morphs['hip'].items():
         print(f'		targetGeom {morph_name}', file=pz2)
         print('			{', file=pz2)
-        tweak_parm(morph_values, 1)
+        tweak_parm(morph_values)
         print('			}', file=pz2)
 
     # hip Y position
     print('		translateY ytran\n			{', file=pz2)
-    tweak_parm(dossier['Hip']['yTranslate'], 0.0038149297967307)
+    tweak_parm(dossier['Hip']['yTranslate'], TRANSLATION_FACTOR_HIP)
     print('			}', file=pz2)
 
     # end hip
@@ -404,7 +416,7 @@ actor abdomen:1
     for morph_name, morph_values in morphs['abdomen'].items():
         print(f'		targetGeom {morph_name}', file=pz2)
         print('			{', file=pz2)
-        tweak_parm(morph_values, 1)
+        tweak_parm(morph_values)
         print('			}', file=pz2)
 
     # end abdomen
@@ -432,7 +444,7 @@ actor abdomen:1
     for morph_name, morph_values in morphs['chest'].items():
         print(f'		targetGeom {morph_name}', file=pz2)
         print('			{', file=pz2)
-        tweak_parm(morph_values, 1)
+        tweak_parm(morph_values)
         print('			}', file=pz2)
 
     # end chest
@@ -470,13 +482,105 @@ actor head:1
         parm = head.Parameter(morph_name)
         print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
         print('			{', file=pz2)
-        tweak_parm(morph_values, 1)
+        tweak_parm(morph_values)
         print('			}', file=pz2)
 
     # end head
     print('		}\n	}', file=pz2)
 
-    # begin arms
+    # eyes
+    if 'Eyes' in dossier:
+        for side in ['r', 'l']:
+            print('''\nactor ''' + side + '''Eye:1
+	{
+	channels
+		{''', file=pz2)
+
+            if 'Scale' in dossier['Eyes']:
+                print('		scale scale\n			{', file=pz2)
+                tweak_parm(dossier['Eyes']['Scale'], 0.01)
+                print('			}', file=pz2)
+
+            if 'yTranslate' in dossier['Eyes']:
+                print('		translateY ytran\n			{', file=pz2)
+                tweak_parm(dossier['Eyes']['yTranslate'], TRANSLATION_FACTOR_HEAD, True)
+                print('			}', file=pz2)
+
+            if 'zTranslate' in dossier['Eyes']:
+                print('		translateZ ztran\n			{', file=pz2)
+                tweak_parm(dossier['Eyes']['zTranslate'], TRANSLATION_FACTOR_HEAD, True)
+                print('			}', file=pz2)
+
+            print('''		}
+	}''', file=pz2)
+
+    # upper jaw
+    if 'UpperJaw' in dossier:
+        print('''\nactor upperJaw:1
+	{
+	channels
+		{''', file=pz2)
+
+        if 'Scale' in dossier['UpperJaw']:
+            print('		scale scale\n			{', file=pz2)
+            tweak_parm(dossier['UpperJaw']['Scale'], 0.01)
+            print('			}', file=pz2)
+
+        if 'yTranslate' in dossier['UpperJaw']:
+            print('		translateY ytran\n			{', file=pz2)
+            tweak_parm(dossier['UpperJaw']['yTranslate'], TRANSLATION_FACTOR_HEAD, True)
+            print('			}', file=pz2)
+
+        if 'zTranslate' in dossier['UpperJaw']:
+            print('		translateZ ztran\n			{', file=pz2)
+            tweak_parm(dossier['UpperJaw']['zTranslate'], TRANSLATION_FACTOR_HEAD, True)
+            print('			}', file=pz2)
+
+        print('''		}
+	}''', file=pz2)
+
+    # lower jaw
+    if 'LowerJaw' in dossier:
+        print('''\nactor lowerJaw:1
+	{
+	channels
+		{''', file=pz2)
+
+        if 'Scale' in dossier['LowerJaw']:
+            print('		scale scale\n			{', file=pz2)
+            tweak_parm(dossier['LowerJaw']['Scale'], 0.01)
+            print('			}', file=pz2)
+
+        if 'yTranslate' in dossier['LowerJaw']:
+            print('		translateY ytran\n			{', file=pz2)
+            tweak_parm(dossier['LowerJaw']['yTranslate'], TRANSLATION_FACTOR_HEAD, True)
+            print('			}', file=pz2)
+
+        if 'zTranslate' in dossier['LowerJaw']:
+            print('		translateZ ztran\n			{', file=pz2)
+            tweak_parm(dossier['LowerJaw']['zTranslate'], TRANSLATION_FACTOR_HEAD, True)
+            print('			}', file=pz2)
+
+        print('''		}
+	}''', file=pz2)
+
+    if 'Tongue' in dossier:
+        print('\n', file=pz2)
+        for actor in ['tongueBase', 'tongue01', 'tongue02', 'tongue03', 'tongue04', 'tongue05', 'tongueTip']:
+            print('''\nactor ''' + actor + ''':1
+	{
+	channels
+		{''', file=pz2)
+
+            if 'Scale' in dossier['Tongue']:
+                print('		scale scale\n			{', file=pz2)
+                tweak_parm(dossier['Tongue']['Scale'], 0.01)
+                print('			}', file=pz2)
+
+            print('''		}
+	}''', file=pz2)
+
+    # arms
     for side in ['r', 'l']:
         print('''\n\n
 actor ''' + side + '''Shldr:1
@@ -545,7 +649,7 @@ actor ''' + side + '''Hand:1
 		}
 	}''', file=pz2)
 
-    # begin legs
+    # legs
     for side in ['r', 'l']:
         print('''\n\n
 actor ''' + side + '''Thigh:1
@@ -563,8 +667,17 @@ actor ''' + side + '''Thigh:1
 						collapsed 1
 						}
 					}
-				}
-			}
+				}''', file=pz2)
+        if 'VastusMedialus' in dossier['Body']['Morphs | Shapes']['Muscle']:
+            print('''			groupNode Morphs | Shapes
+				{
+				collapsed 0
+				groupNode Muscle
+					{
+					collapsed 0
+					}
+				}''', file=pz2)
+        print('''			}
 		}
 	}
 
@@ -631,7 +744,11 @@ def rem_deltas(group: str, type: str, name: str) -> str:
           file=pz2)
 
 
-def tweak_parm(user_entry: Any, multiplier: float = 1) -> None:
+def tweak_parm(
+        user_entry: Any,
+        multiplier: float = 1,
+        unhide: bool = False
+) -> None:
     global dossier, pz2, dossier
 
     value = None
@@ -646,8 +763,10 @@ def tweak_parm(user_entry: Any, multiplier: float = 1) -> None:
         value = user_entry
 
     if value is not None:
-        print('''			initValue ''' + poser_float(value, multiplier) + '''
-			keys
+        print('			initValue ' + poser_float(value, multiplier), file=pz2)
+    if unhide: print('			hidden 0', file=pz2)
+    if value is not None:
+        print('''			keys
 				{
 				k  0  ''' + poser_float(value, multiplier) + '''
 				}''', file=pz2)
@@ -665,22 +784,29 @@ def poser_float(s: str, multiplier: float) -> str:
     if fl % 1 == 0:
         return str(fl).split('.')[0]
     else:
-        return str(fl)
+        for decimals in range(4, 8):
+            rounded = round(fl, decimals)
+            if abs(fl - rounded) < 1e-10:  # 0.00000001
+                fl = rounded
+                break
+        return str(fl).rstrip('0').rstrip('.')
 
 
 def value_op_number(s: str, multiplier: float) -> str:
     return f'{s[-1] if s[-1] == "-" else ""}{poser_float(s.strip()[1:-2], multiplier)}'
 
 
-def get_actor_name_by_morph_name(morph_name: str) -> str:
-    if any_in_str(morph_name, ['Glutes']):
+def get_actor_name_by_morph_name(name: str) -> str:
+    if name in ['PBMRectusFemorus'] or any_in_str(name, ['Glutes']):
         return 'hip'
-    elif morph_name in ['PBMWaistWidth', 'PBMLineaAlba']:
+    elif name in ['PBMBellyThin', 'PBMLineaAlba', 'PBMNavelHorizontal', 'PBMNavelSize', 'PBMNavelVertical',
+                  'PBMTummyOut', 'PBMWaistWidth']:
         return 'abdomen'
-    elif any_in_str(morph_name, ['Breast', 'Areola', 'Nipple']):
+    elif name in ['PBMInhale', 'PBMTrapsSize'] or \
+            any_in_str(name, ['Breast', 'Areola', 'Nipple']):
         return 'chest'
     else:
-        raise Exception(f'What actor does this morph belong to? {morph_name}')
+        raise Exception(f'What actor does this morph belong to? {name}')
 
 
 def any_in_str(string: str, list: List[str]) -> bool:
@@ -691,4 +817,4 @@ def any_in_str(string: str, list: List[str]) -> bool:
 
 
 if __name__ == '__main__':
-    create_injector('4.6', 4, False)
+    create_injector(None, None, False)

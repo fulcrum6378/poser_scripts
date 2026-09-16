@@ -11,12 +11,14 @@
       <w>edgesonly</w>
       <w>emiss</w>
       <w>espinela</w>
+      <w>espinela's</w>
       <w>injdeltas</w>
       <w>mastersynched</w>
       <w>morphforms</w>
       <w>pbms</w>
       <w>phms</w>
       <w>programfiles</w>
+      <w>rectusfemorus</w>
       <w>vastuslateralus</w>
       <w>vastusmedialus</w>
       <w>xrot</w>
@@ -25,6 +27,7 @@
       <w>ytran</w>
       <w>ytranslate</w>
       <w>zrot</w>
+      <w>ztran</w>
     </words>
   </dictionary>
 </component>

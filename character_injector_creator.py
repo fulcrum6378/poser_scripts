@@ -55,8 +55,14 @@ def create_injector(
     print('runPythonScript "Runtime:Python:poserScripts:MAHDI:_' + figure_name.lower() + '_v' + \
           version.replace('.', '_') + '.py"', file=pz2)
     print('', file=pz2)
-    body_morphs: Dict[str, Any] = {}
-    head_morphs: Dict[str, Any] = {}
+    morphs: Dict[str, Dict[str, Any]] = {
+        'BODY': {},
+        'hip': {},
+        'abdomen': {},
+        'chest': {},
+        'neck': {},
+        'head': {},
+    }
 
     # V4/M4 Base Morphs
     if figure_type == 'Victoria 4':
@@ -93,7 +99,7 @@ def create_injector(
             print(f'\n// {figure_type_abbr} Full Body Morphs++', file=pz2)
             for fbm in sorted(list(dossier['Body']['Morphs | Shapes']['Morphs++']['Full Body'].keys())):
                 inj_deltas('Morphs++', 'FBM', fbm)
-                body_morphs['FBM' + fbm] = dossier['Body']['Morphs | Shapes']['Morphs++']['Full Body'][fbm]
+                morphs['BODY']['FBM' + fbm] = dossier['Body']['Morphs | Shapes']['Morphs++']['Full Body'][fbm]
 
         for pbm_group_name, pbm_group in dossier['Body']['Morphs | Shapes']['Morphs++'].items():
             if pbm_group_name == 'Full Body': continue
@@ -102,7 +108,7 @@ def create_injector(
                     contextual_pbms.append(pbm)
                 else:
                     static_pbms.append(pbm)
-                body_morphs['PBM' + pbm] = pbm_node
+                morphs['BODY']['PBM' + pbm] = pbm_node
                 if pbm in dynamic_pbms:
                     dynamic_pbms.remove(pbm)
 
@@ -142,7 +148,7 @@ def create_injector(
                     contextual_phms.append(phm)
                 else:
                     static_phms.append(phm)
-                head_morphs['PHM' + phm] = phm_node
+                morphs['head']['PHM' + phm] = phm_node
 
         if len(static_phms) != 0:
             print('\n// V4 Partial Head Morphs++ (static)', file=pz2)
@@ -172,7 +178,7 @@ def create_injector(
         for morph_name, morph_values in dossier['Body']['Morphs | Shapes']['Elite'].items():
             morph_type = 'FBM' if morph_name.endswith('Body') else 'PBM'
             inj_deltas('Elite', morph_type, morph_name)
-            body_morphs[morph_type + morph_name] = morph_values
+            morphs['BODY'][morph_type + morph_name] = morph_values
 
     # V4/M4 Stephanie Morphs
     s4_static_pbms: List[str] = []
@@ -187,7 +193,7 @@ def create_injector(
                         s4_contextual_pbms.append(pbm)
                     else:
                         s4_static_pbms.append(pbm)
-                    body_morphs['PBM' + pbm] = pbm_node
+                    morphs['BODY']['PBM' + pbm] = pbm_node
         if 'PubicDepth' not in s4_static_pbms and 'PubicDepth' not in s4_contextual_pbms:
             s4_contextual_pbms.append('PubicDepth')
 
@@ -209,7 +215,7 @@ def create_injector(
         print(f'\n// V4 Muscle Morphs', file=pz2)
         for morph_name, morph_values in dossier['Body']['Morphs | Shapes']['Muscle'].items():
             inj_deltas('Muscle', 'PBM', morph_name)
-            body_morphs['PBM' + morph_name] = morph_values
+            morphs['BODY']['PBM' + morph_name] = morph_values
     print('', file=pz2)
 
     if 'XandM Jaw-dropper Breast Morphs' in dossier['Figure']:
@@ -224,9 +230,7 @@ def create_injector(
                   '!INJ JawDropper Breast Morphs.pz2"', file=pz2)
 
     # begin BODY
-    print('''
-
-
+    print('''\n\n
 actor BODY:1
 	{
 	channels
@@ -257,13 +261,13 @@ actor BODY:1
     if 'Special' in dossier['Body']:
         print('			groupNode Special\n				{', file=pz2)
         for parm in dossier['Body']['Special'].values():
-            print('				parmNode ' + parm, file=pz2)
+            print('				parmNode ' + parm['Name'], file=pz2)
     print('				}', file=pz2)
     print('			}', file=pz2)
 
     # write DAZ body parameters
     body = figure.Actor('BODY')
-    for morph_name, morph_values in body_morphs.items():
+    for morph_name, morph_values in morphs['BODY'].items():
         parm = body.Parameter(morph_name)
         print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
         print('			{', file=pz2)
@@ -272,21 +276,21 @@ actor BODY:1
 
     # write custom body parameters
     for parm in dossier['Body']['Special'].values():
-        print('''		valueParm ''' + parm + '''
+        print('''		valueParm ''' + parm['Name'] + '''
 			{
-			name ''' + parm + '''
-			initValue 0
+			name ''' + parm['Name'] + '''
+			initValue ''' + (parm['Default'] if 'Default' in parm else '0') + '''
 			hidden 0
 			enabled 1
 			forceLimits 1
-			min 0
-			max ''' + ('1' if parm != 'Giantess' else '100000') + '''
-			trackingScale 1
+			min ''' + (parm['Min'] if 'Min' in parm else '0') + '''
+			max ''' + (parm['Max'] if 'Max' in parm else '1') + '''
+			trackingScale ''' + (parm['TrackingScale'] if 'TrackingScale' in parm else '0.004') + '''
 			masterSynched 0
 			keys
 				{
 				static  0
-				k  0  0
+				k  0  ''' + (parm['Default'] if 'Default' in parm else '0') + '''
 				}
 			interpStyleLocked 0
 			}''', file=pz2)
@@ -313,7 +317,8 @@ actor BODY:1
 	}''', file=pz2)
 
     # begin hip
-    print('''\n\nactor hip:1
+    print('''\n\n
+actor hip:1
 	{
 	channels
 		{
@@ -353,7 +358,8 @@ actor BODY:1
     print('		}\n	}', file=pz2)
 
     # begin abdomen
-    print('''\nactor abdomen:1
+    print('''
+actor abdomen:1
 	{
 	channels
 		{
@@ -382,10 +388,205 @@ actor BODY:1
     # end abdomen
     print('		}\n	}', file=pz2)
 
-    # print('''''', file=pz2)
+    # begin chest
+    print('''\nactor chest:1
+	{
+	channels
+		{
+		groups
+			{''', file=pz2)
+    if figure_type == 'Victoria 4':
+        print('''			groupNode Morphs | Shapes
+				{
+				collapsed 0
+				groupNode Morphs++
+					{
+					collapsed 0
+					}
+				}''', file=pz2)
+    print('''			}''', file=pz2)
+
+    # end chest
+    print('		}\n	}', file=pz2)
+
+    # begin head
+    print('''\n\n
+actor head:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode Morphs | Expressions
+				{
+				collapsed 0
+				groupNode Base
+					{
+					collapsed 0
+					}
+				}
+			groupNode Morphforms
+				{
+				collapsed 0
+				groupNode Morphs++
+					{
+					collapsed 0
+					}
+				}
+			}''', file=pz2)
+
+    # write DAZ head parameters
+    head = figure.Actor('head')
+    for morph_name, morph_values in morphs['head'].items():
+        parm = head.Parameter(morph_name)
+        print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
+        print('			{', file=pz2)
+        tweak_parm(morph_values, 1)
+        print('			}', file=pz2)
+
+    # end head
+    print('		}\n	}', file=pz2)
+
+    # begin arms
+    for side in ['r', 'l']:
+        print('''\n\n
+actor ''' + side + '''Shldr:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode General
+				{
+				groupNode Transforms
+					{
+					groupNode Scale
+						{
+						collapsed 1
+						}
+					}
+				}
+			groupNode Morphs | Shapes
+				{
+				collapsed 0
+				groupNode Morphs++
+					{
+					collapsed 0
+					}
+				}
+			}
+		}
+	}
+
+actor ''' + side + '''ForeArm:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode General
+				{
+				groupNode Transforms
+					{
+					groupNode Scale
+						{
+						collapsed 1
+						}
+					}
+				}
+			}
+		}
+	}
+
+actor ''' + side + '''Hand:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode Morphforms
+				{
+				collapsed 0
+				groupNode Morphs++
+					{
+					collapsed 0
+					}
+				}
+			}
+		}
+	}''', file=pz2)
+
+    # begin legs
+    for side in ['r', 'l']:
+        print('''\n\n
+actor ''' + side + '''Thigh:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode General
+				{
+				groupNode Transforms
+					{
+					groupNode Scale
+						{
+						collapsed 1
+						}
+					}
+				}
+			}
+		}
+	}
+
+actor ''' + side + '''Shin:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode General
+				{
+				groupNode Transforms
+					{
+					groupNode Scale
+						{
+						collapsed 1
+						}
+					}
+				}
+			groupNode Morphs | Shapes
+				{
+				collapsed 0
+				groupNode Morphs++
+					{
+					collapsed 0
+					}
+				}
+			}
+		}
+	}
+
+actor ''' + side + '''Toe:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode Morphs | Shapes
+				{
+				collapsed 0
+				groupNode Morphs++
+					{
+					collapsed 0
+					}
+				}
+			}
+		}
+	}''', file=pz2)
 
     # end writing
-    print('}', file=pz2)
+    print('\n}', file=pz2)
     pz2.close()
 
 
@@ -411,7 +612,7 @@ def tweak_parm(user_entry: Any, multiplier: float = 1) -> None:
             if k == 'N':
                 value = user_entry['N']
             else:
-                value_ops[dossier['Body']['Special'][k]] = v
+                value_ops[dossier['Body']['Special'][k]['Name']] = v
     else:
         value = user_entry
 

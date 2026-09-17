@@ -26,11 +26,23 @@ def create_injector(
     elif target_library is None:
         target_library = source_library
 
+    # determine figure type
+    figure_type = list(dossier['Figure'].keys())[0]
+    figure_type = {
+        'Victoria 4': 'Victoria 4',
+        'Victoria 4.2': 'Victoria 4',
+        'Michael 4': 'Michael 4',
+    }[figure_type]
+    if figure_type == 'Victoria 4':
+        figure_type_abbr = 'V4'
+    else:
+        figure_type_abbr = 'M4'
+
     # ------------------------PYTHON SCRIPT-------------------------
 
     # determine the path of the auto-generated Python script for this character
     py3_name = character_name.lower() + '_v' + character_version.replace('.', '_') + '.py'
-    py3_dir = os.path.join(target_library, 'Runtime', 'Python', 'poserScripts', 'Character')
+    py3_dir = os.path.join(target_library, 'Runtime', 'Python', 'poserScripts', 'Characters')
     if not os.path.isdir(py3_dir):
         os.makedirs(py3_dir)
     py3 = open(os.path.join(py3_dir, py3_name), 'w')
@@ -51,8 +63,8 @@ if figure.Name() != '{character_name.upper()}':
                 print(f"    body.CreateValueParameter('{parm['Name']}')", file=py3)
             else:
                 morph_target_path = os.path.join(
-                    os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name, 'Sculpture on V4',
-                    parm['Name'] + '.obj')
+                    os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name,
+                    'Sculpture on ' + figure_type_abbr, parm['Name'] + '.obj')
                 print(f"    figure.LoadFullBodyMorph(\n        r'{morph_target_path}')", file=py3)
 
     # custom chest morphs
@@ -60,38 +72,32 @@ if figure.Name() != '{character_name.upper()}':
         print(f"\n    chest = figure.Actor('chest')", file=py3)
         for morph in dossier['Chest']['Special'].values():
             morph_target_path = os.path.join(
-                os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name, 'Sculpture on V4',
-                morph['Name'] + '.obj')
+                os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name,
+                'Sculpture on ' + figure_type_abbr, morph['Name'] + '.obj')
             print(f"    chest.LoadMorphTargetFile(\n        r'{morph_target_path}')", file=py3)
+            # TODO NOT GONNA WORK
 
     # end writing python
     print("""
 else:
-    poser.ExecFile('figure_remove_empty_daz_params_silent.py')""", file=py3)
+    poser.ExecFile('../MAHDI/figure_remove_empty_daz_params_silent.py')
+    poser.ExecFile('../MAHDI/character_material_loader.py')""", file=py3)
 
     # -------------------------POSER SCRIPT-------------------------
 
     # determine the path of PZ2
-    pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', '!' + character_name)
+    pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', '!Characters')
     if not os.path.isdir(pz2_dir):
         os.makedirs(pz2_dir)
     pz2 = open(
-        os.path.join(pz2_dir, f'Test{"-DS" if for_ds else ""}.pz2'),
+        os.path.join(pz2_dir, f'{character_name} v{character_version}{"-DS" if for_ds else ""}.pz2'),
         'w', encoding='cp1252', newline='\n')
-
-    # determine figure type
-    figure_type = list(dossier['Figure'].keys())[0]
-    figure_type = {
-        'Victoria 4': 'Victoria 4',
-        'Victoria 4.2': 'Victoria 4',
-        'Michael 4': 'Michael 4',
-    }[figure_type]
 
     # Poser version
     print('{\n\nversion\n	{\n	number 14\n	}\n', file=pz2)
 
     # primary Python script
-    print('runPythonScript "Runtime:Python:poserScripts:Character:' + py3_name + '"', file=pz2)
+    print('runPythonScript "Runtime:Python:poserScripts:Characters:' + py3_name + '"', file=pz2)
 
     morphs: Dict[str, Dict[str, Any]] = {
         'BODY': {},
@@ -111,9 +117,6 @@ else:
         rem_deltas('Base', 'FHM', 'George')
         rem_deltas('Base', 'FHM', 'John')
         rem_deltas('Base', 'FHM', 'Paul')
-        figure_type_abbr = 'V4'
-    else:
-        figure_type_abbr = 'M4'
 
     # ----------------------V4/M4 Body Morphs++---------------------
 
@@ -130,16 +133,15 @@ else:
 
     static_pbms: List[str] = []
     contextual_pbms: List[str] = []
-    if 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
-            'Morphs++' in dossier['Body']['Morphs | Shapes']:
+    if 'Body' in dossier and  'Morphs++' in dossier['Body']:
 
-        if 'Full Body' in dossier['Body']['Morphs | Shapes']['Morphs++']:
+        if 'Full Body' in dossier['Body']['Morphs++']:
             print(f'\n// {figure_type_abbr} Full Body Morphs++', file=pz2)
-            for fbm in sorted(list(dossier['Body']['Morphs | Shapes']['Morphs++']['Full Body'].keys())):
+            for fbm in sorted(list(dossier['Body']['Morphs++']['Full Body'].keys())):
                 inj_deltas('Morphs++', 'FBM', fbm)
-                morphs['BODY']['FBM' + fbm] = dossier['Body']['Morphs | Shapes']['Morphs++']['Full Body'][fbm]
+                morphs['BODY']['FBM' + fbm] = dossier['Body']['Morphs++']['Full Body'][fbm]
 
-        for pbm_group_name, pbm_group in dossier['Body']['Morphs | Shapes']['Morphs++'].items():
+        for pbm_group_name, pbm_group in dossier['Body']['Morphs++'].items():
             if pbm_group_name == 'Full Body': continue
             for pbm, pbm_node in pbm_group.items():
                 if isinstance(pbm_node, dict) and 'N' not in pbm_node.keys():
@@ -170,18 +172,13 @@ else:
 
     # ----------------------V4/M4 Head Morphs++---------------------
 
-    if 'Head' in dossier and 'Morphs | Shapes' in dossier['Head'] and \
-            'Morphs++' in dossier['Head']['Morphs | Shapes']:
+    if 'Head' in dossier and 'Morphs++' in dossier['Head']:
 
         static_phms: List[str] = []
         contextual_phms: List[str] = []
-        phm_groups = dossier['Head']['Morphs | Shapes']['Morphs++']
-        # if 'Eyes' in dossier['Head']['Morphs | Shapes']['Morphs++'] and \
-        #        'Eyeballs' in dossier['Head']['Morphs | Shapes']['Morphs++']['Eyes']:
-        #    phm_groups['Eyeballs'] = dossier['Head']['Morphs | Shapes']['Morphs++']['Eyes']['Eyeballs']
+        phm_groups = dossier['Head']['Morphs++']
         for phm_group in phm_groups.values():
             for phm, phm_node in phm_group.items():
-                # if phm == 'Eyeballs': continue
                 if isinstance(phm_node, dict) and 'N' not in phm_node.keys():
                     contextual_phms.append(phm)
                 else:
@@ -210,10 +207,9 @@ else:
         inj_deltas('Morphs++', 'CTRL', ctrl)
 
     # V4/M4 Elite Morphs
-    if 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
-            'Elite' in dossier['Body']['Morphs | Shapes']:
+    if 'Body' in dossier and 'Elite' in dossier['Body']:
         print(f'\n// {figure_type_abbr} Elite Morphs', file=pz2)
-        for morph_name, morph_values in dossier['Body']['Morphs | Shapes']['Elite'].items():
+        for morph_name, morph_values in dossier['Body']['Elite'].items():
             morph_type = 'FBM' if morph_name.endswith('Body') else 'PBM'
             inj_deltas('Elite', morph_type, morph_name)
             morphs['BODY'][morph_type + morph_name] = morph_values
@@ -222,9 +218,8 @@ else:
     s4_static_pbms: List[str] = []
     s4_contextual_pbms: List[str] = []
     if figure_type == 'Victoria 4':
-        if 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
-                'Stephanie 4' in dossier['Body']['Morphs | Shapes']:
-            for pbm_group_name, pbm_group in dossier['Body']['Morphs | Shapes']['Stephanie 4'].items():
+        if 'Body' in dossier and 'Stephanie 4' in dossier['Body']:
+            for pbm_group_name, pbm_group in dossier['Body']['Stephanie 4'].items():
                 if pbm_group_name == 'Full Body': continue
                 for pbm, pbm_node in pbm_group.items():
                     if isinstance(pbm_node, dict) and 'N' not in pbm_node.keys():
@@ -248,10 +243,9 @@ else:
                 inj_deltas('Stephanie 4', 'PBM', pbm)
 
     # V4 Muscle Morphs
-    if figure_type == 'Victoria 4' and 'Body' in dossier and 'Morphs | Shapes' in dossier['Body'] and \
-            'Muscle' in dossier['Body']['Morphs | Shapes']:
+    if figure_type == 'Victoria 4' and 'Body' in dossier and 'Muscle' in dossier['Body']:
         print(f'\n// V4 Muscle Morphs', file=pz2)
-        for morph_name, morph_values in dossier['Body']['Morphs | Shapes']['Muscle'].items():
+        for morph_name, morph_values in dossier['Body']['Muscle'].items():
             inj_deltas('Muscle', 'PBM', morph_name)
             morphs['BODY']['PBM' + morph_name] = morph_values
 
@@ -375,7 +369,7 @@ actor hip:1
 					{
 					collapsed 0
 					}''', file=pz2)
-    if 'RectusFemorus' in dossier['Body']['Morphs | Shapes']['Muscle']:
+    if 'Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle']:
         print('''				groupNode Muscle
 					{
 					collapsed 0
@@ -720,7 +714,7 @@ actor ''' + side + '''Thigh:1
 						}
 					}
 				}''', file=pz2)
-        if 'VastusMedialus' in dossier['Body']['Morphs | Shapes']['Muscle']:
+        if 'Muscle' in dossier['Body'] and 'VastusMedialus' in dossier['Body']['Muscle']:
             print('''			groupNode Morphs | Shapes
 				{
 				collapsed 0

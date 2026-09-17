@@ -1,30 +1,17 @@
 import os
 from typing import Any, Dict, Iterable, List, Optional
 
-import character_dossier
-
-import importlib
-
-importlib.reload(character_dossier)
-TRANSLATION_FACTOR_HIP = 0.0038149298209603575  # synchronised with Espinela's hip
-TRANSLATION_FACTOR_HEAD = 0.0038125
+TRANSLATION_MULTIPLIER_HIP = 0.0038149298209603575  # synchronised with Espinela's hip
+TRANSLATION_MULTIPLIER_HEAD = 0.0038125
 
 
 def create_injector(
-        version: Optional[str],
-        revision: Optional[int],
+        v4_sample: poser.FigureType,
+        character_name: str,
+        character_version: str,
         for_ds: bool,
 ) -> None:
     global dossier, pz2, figure_type
-
-    scene = poser.Scene()
-    figure = scene.CurrentFigure()
-    figure_name = figure.Name()
-    dossier = character_dossier.load_dossier(figure_name, version, revision)
-    if dossier is None:
-        raise Exception('This figure has no dossier!')
-    version = character_dossier.get_version_from_dossier_path(
-        character_dossier.get_latest_dossier_path(figure_name))
 
     # determine the libraries
     source_library: Optional[str] = None
@@ -42,7 +29,7 @@ def create_injector(
     # ------------------------PYTHON SCRIPT-------------------------
 
     # determine the path of the auto-generated Python script for this character
-    py3_name = figure_name.lower() + '_v' + version.replace('.', '_') + '.py'
+    py3_name = character_name.lower() + '_v' + character_version.replace('.', '_') + '.py'
     py3_dir = os.path.join(target_library, 'Runtime', 'Python', 'poserScripts', 'Character')
     if not os.path.isdir(py3_dir):
         os.makedirs(py3_dir)
@@ -53,9 +40,10 @@ def create_injector(
 
 # this script is executed twice
 figure = poser.Scene().CurrentFigure()
-if figure.Name() != '{figure_name.upper()}':
-    figure.SetName('{figure_name.upper()}')""", file=py3)
+if figure.Name() != '{character_name.upper()}':
+    figure.SetName('{character_name.upper()}')""", file=py3)
 
+    # custom body parameters and full body morphs
     if 'Special' in dossier['Body']:
         print("\n    body = figure.Actor('BODY')", file=py3)
         for parm in dossier['Body']['Special'].values():
@@ -63,9 +51,18 @@ if figure.Name() != '{figure_name.upper()}':
                 print(f"    body.CreateValueParameter('{parm['Name']}')", file=py3)
             else:
                 morph_target_path = os.path.join(
-                    os.environ['ONEDRIVE'], 'Projects', 'Characters', figure_name.capitalize(),
-                    'Sculpture on V4', parm['Name'] + '.obj')
+                    os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name, 'Sculpture on V4',
+                    parm['Name'] + '.obj')
                 print(f"    figure.LoadFullBodyMorph(\n        r'{morph_target_path}')", file=py3)
+
+    # custom chest morphs
+    if 'Chest' in dossier and 'Special' in dossier['Chest']:
+        print(f"\n    chest = figure.Actor('chest')", file=py3)
+        for morph in dossier['Chest']['Special'].values():
+            morph_target_path = os.path.join(
+                os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name, 'Sculpture on V4',
+                morph['Name'] + '.obj')
+            print(f"    chest.LoadMorphTargetFile(\n        r'{morph_target_path}')", file=py3)
 
     # end writing python
     print("""
@@ -75,7 +72,7 @@ else:
     # -------------------------POSER SCRIPT-------------------------
 
     # determine the path of PZ2
-    pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', '!' + figure_name)
+    pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', '!' + character_name)
     if not os.path.isdir(pz2_dir):
         os.makedirs(pz2_dir)
     pz2 = open(
@@ -90,11 +87,11 @@ else:
         'Michael 4': 'Michael 4',
     }[figure_type]
 
+    # Poser version
     print('{\n\nversion\n	{\n	number 14\n	}\n', file=pz2)
 
     # primary Python script
     print('runPythonScript "Runtime:Python:poserScripts:Character:' + py3_name + '"', file=pz2)
-    print('', file=pz2)
 
     morphs: Dict[str, Dict[str, Any]] = {
         'BODY': {},
@@ -311,7 +308,7 @@ actor BODY:1
         special_parm(parm)
 
     # write DAZ body parameters
-    body = figure.Actor('BODY')
+    body = v4_sample.Actor('BODY')
     for morph_name, morph_values in morphs['BODY'].items():
         parm = body.Parameter(morph_name)
         print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
@@ -395,7 +392,7 @@ actor hip:1
 
     # hip Y position
     print('		translateY ytran\n			{', file=pz2)
-    tweak_parm(dossier['Hip']['yTranslate'], TRANSLATION_FACTOR_HIP)
+    tweak_parm(dossier['Hip']['yTranslate'], TRANSLATION_MULTIPLIER_HIP)
     print('			}', file=pz2)
 
     # end hip
@@ -471,7 +468,7 @@ actor abdomen:1
 
     # 3rd-party morphs
     if 'Chest' in dossier and 'JawDropper' in dossier['Chest']:
-        for morph_name, user_entry in dossier['Chest']['JawDropper']:
+        for morph_name, user_entry in dossier['Chest']['JawDropper'].items():
             print(f'		targetGeom {morph_name}', file=pz2)
             print('			{', file=pz2)
             tweak_parm(user_entry)
@@ -507,12 +504,17 @@ actor head:1
 			}''', file=pz2)
 
     # write DAZ head parameters
-    head = figure.Actor('head')
+    head = v4_sample.Actor('head')
     for morph_name, morph_values in morphs['head'].items():
         parm = head.Parameter(morph_name)
         print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
         print('			{', file=pz2)
         tweak_parm(morph_values)
+        print('			}', file=pz2)
+
+    if 'Scale' in dossier['Head']:
+        print('		scale scale\n			{', file=pz2)
+        tweak_parm(dossier['Head']['Scale'], 0.01)
         print('			}', file=pz2)
 
     # end head
@@ -526,19 +528,24 @@ actor head:1
 	channels
 		{''', file=pz2)
 
-            if 'Scale' in dossier['Eyes']:
+            if 'Scale' in dossier['Eyes'] or 'Scale' in dossier['Head']:
+                if 'Scale' in dossier['Head']:
+                    scale = dossier['Head']['Scale']
+                else:
+                    scale = dossier['Eyes']['Scale']
+
                 print('		scale scale\n			{', file=pz2)
-                tweak_parm(dossier['Eyes']['Scale'], 0.01)
+                tweak_parm(scale, 0.01)
                 print('			}', file=pz2)
 
             if 'yTranslate' in dossier['Eyes']:
                 print('		translateY ytran\n			{', file=pz2)
-                tweak_parm(dossier['Eyes']['yTranslate'], TRANSLATION_FACTOR_HEAD, True)
+                tweak_parm(dossier['Eyes']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
                 print('			}', file=pz2)
 
             if 'zTranslate' in dossier['Eyes']:
                 print('		translateZ ztran\n			{', file=pz2)
-                tweak_parm(dossier['Eyes']['zTranslate'], TRANSLATION_FACTOR_HEAD, True)
+                tweak_parm(dossier['Eyes']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
                 print('			}', file=pz2)
 
             print('''		}
@@ -551,19 +558,24 @@ actor head:1
 	channels
 		{''', file=pz2)
 
-        if 'Scale' in dossier['UpperJaw']:
+        if 'Scale' in dossier['UpperJaw'] or 'Scale' in dossier['Head']:
+            if 'Scale' in dossier['Head']:
+                scale = dossier['Head']['Scale']
+            else:
+                scale = dossier['UpperJaw']['Scale']
+
             print('		scale scale\n			{', file=pz2)
-            tweak_parm(dossier['UpperJaw']['Scale'], 0.01)
+            tweak_parm(scale, 0.01)
             print('			}', file=pz2)
 
         if 'yTranslate' in dossier['UpperJaw']:
             print('		translateY ytran\n			{', file=pz2)
-            tweak_parm(dossier['UpperJaw']['yTranslate'], TRANSLATION_FACTOR_HEAD, True)
+            tweak_parm(dossier['UpperJaw']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
             print('			}', file=pz2)
 
         if 'zTranslate' in dossier['UpperJaw']:
             print('		translateZ ztran\n			{', file=pz2)
-            tweak_parm(dossier['UpperJaw']['zTranslate'], TRANSLATION_FACTOR_HEAD, True)
+            tweak_parm(dossier['UpperJaw']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
             print('			}', file=pz2)
 
         print('''		}
@@ -576,19 +588,24 @@ actor head:1
 	channels
 		{''', file=pz2)
 
-        if 'Scale' in dossier['LowerJaw']:
+        if 'Scale' in dossier['LowerJaw'] or 'Scale' in dossier['Head']:
+            if 'Scale' in dossier['Head']:
+                scale = dossier['Head']['Scale']
+            else:
+                scale = dossier['LowerJaw']['Scale']
+
             print('		scale scale\n			{', file=pz2)
-            tweak_parm(dossier['LowerJaw']['Scale'], 0.01)
+            tweak_parm(scale, 0.01)
             print('			}', file=pz2)
 
         if 'yTranslate' in dossier['LowerJaw']:
             print('		translateY ytran\n			{', file=pz2)
-            tweak_parm(dossier['LowerJaw']['yTranslate'], TRANSLATION_FACTOR_HEAD, True)
+            tweak_parm(dossier['LowerJaw']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
             print('			}', file=pz2)
 
         if 'zTranslate' in dossier['LowerJaw']:
             print('		translateZ ztran\n			{', file=pz2)
-            tweak_parm(dossier['LowerJaw']['zTranslate'], TRANSLATION_FACTOR_HEAD, True)
+            tweak_parm(dossier['LowerJaw']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
             print('			}', file=pz2)
 
         print('''		}
@@ -602,9 +619,14 @@ actor head:1
 	channels
 		{''', file=pz2)
 
-            if 'Scale' in dossier['Tongue']:
+            if 'Scale' in dossier['Tongue'] or 'Scale' in dossier['Head']:
+                if 'Scale' in dossier['Head']:
+                    scale = dossier['Head']['Scale']
+                else:
+                    scale = dossier['Tongue']['Scale']
+
                 print('		scale scale\n			{', file=pz2)
-                tweak_parm(dossier['Tongue']['Scale'], 0.01)
+                tweak_parm(scale, 0.01)
                 print('			}', file=pz2)
 
             print('''		}
@@ -772,7 +794,7 @@ figure
     print('	}', file=pz2)
 
     # end writing
-    print('\n}', file=pz2)
+    print('}', file=pz2)
     pz2.close()
 
 
@@ -814,15 +836,17 @@ def special_parm(parm: Dict[str, Any]):
 			initValue ''' + init_value + '''
 			min ''' + min_val + '''
 			max ''' + max_val + '''
-			sensitivity ''' + sensitivity + '''
+			trackingScale ''' + sensitivity + '''
 			keys
 				{
 				k  0  ''' + init_value + '''
 				}''', file=pz2)
 
     if 'Dependencies' in parm:
-        for dep in parm['Dependencies']:
-            value_op_delta_add(dep, 1)
+        value_ops: Dict[str, str] = {}
+        for dep_abbr, dep_value in parm['Dependencies'].items():
+            value_ops[dossier['Body']['Special'][dep_abbr]['Name']] = dep_value
+        value_op_delta_add(value_ops, 1)
 
     print('			}', file=pz2)
 
@@ -904,4 +928,27 @@ def any_in_str(string: str, list: List[str]) -> bool:
 
 
 if __name__ == '__main__':
-    create_injector(None, None, False)
+    continuum = True
+
+    figure = poser.Scene().CurrentFigure()
+    if figure is None or 'blMil' not in figure.GeomFileName():
+        poser.DialogSimple.MessageBox('Please load and select a V4/M4 figure as a sample.')
+        continuum = False
+
+    if continuum:
+        file_chooser = poser.DialogFileChooser(
+            poser.kDialogFileChooserOpen, None, f'Select a Dossier file (*.YML)'
+        )
+        continuum = file_chooser.Show()
+
+    if continuum:
+        import quick_yaml
+
+        dossier_path = file_chooser.Path()
+        dossier = quick_yaml.load(open(dossier_path, 'r').read())
+        dossier_name_split = os.path.basename(dossier_path).rsplit('.', 1)[0].split(' v')
+        create_injector(
+            figure,
+            dossier_name_split[0],
+            dossier_name_split[1].split(' ')[0],
+            poser.DialogSimple.YesNo('Select Yes for Poser\nNo for DAZ Studio') != 1)

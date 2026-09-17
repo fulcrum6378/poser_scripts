@@ -110,6 +110,10 @@ else:
         'neck': {},
         'head': {},
     }
+    hide_morphs: Dict[str, List[str]] = {
+        'neck': [],
+        'head': [],
+    }
 
     # V4/M4 Base Morphs
     if figure_type == 'Victoria 4':
@@ -218,32 +222,37 @@ else:
             morphs['BODY'][morph_type + morph_name] = morph_values
 
     # V4/M4 Stephanie Morphs
-    s4_static_pbms: List[str] = []
-    s4_contextual_pbms: List[str] = []
+    s4_static_morphs: List[str] = []
+    s4_contextual_morphs: List[str] = []
     if figure_type == 'Victoria 4':
         if 'Body' in dossier and 'Stephanie 4' in dossier['Body']:
-            for pbm_group_name, pbm_group in dossier['Body']['Stephanie 4'].items():
-                if pbm_group_name == 'Full Body': continue
-                for pbm, pbm_node in pbm_group.items():
-                    if isinstance(pbm_node, dict) and 'N' not in pbm_node.keys():
-                        s4_contextual_pbms.append(pbm)
+            for s4_group_name, pbm_group in dossier['Body']['Stephanie 4'].items():
+                for morph_name, morph_value in pbm_group.items():
+                    if isinstance(morph_value, dict) and 'N' not in morph_value.keys():
+                        s4_contextual_morphs.append(morph_name)
                     else:
-                        s4_static_pbms.append(pbm)
-                    morphs['BODY']['PBM' + pbm] = pbm_node
-        if 'PubicDepth' not in s4_static_pbms and 'PubicDepth' not in s4_contextual_pbms:
-            s4_contextual_pbms.append('PubicDepth')
+                        s4_static_morphs.append(morph_name)
+                    if s4_group_name == 'Full Body':
+                        morphs['BODY']['FBM' + morph_name] = morph_value
+                    else:
+                        morphs['BODY']['PBM' + morph_name] = morph_value
+        if 'PubicDepth' not in s4_static_morphs and 'PubicDepth' not in s4_contextual_morphs:
+            s4_contextual_morphs.append('PubicDepth')
 
-        if len(s4_static_pbms) != 0:
+        if len(s4_static_morphs) != 0:
             print(f'\n// Stephanie 4 Morphs (static)', file=pz2)
-            s4_static_pbms.sort()
-            for pbm in s4_static_pbms:
-                inj_deltas('Stephanie 4', 'PBM', pbm)
+            s4_static_morphs.sort()
+            s4_static_morphs.sort(key=lambda morph_name: morph_name.startswith('S4'), reverse=True)
+            for morph_name in s4_static_morphs:
+                inj_deltas('Stephanie 4', 'PBM' if not morph_name.startswith('S4') else 'FBM',
+                           morph_name)
 
-        if len(s4_contextual_pbms) != 0:
+        if len(s4_contextual_morphs) != 0:
             print(f'\n// Stephanie 4 Morphs (contextual)', file=pz2)
-            s4_contextual_pbms.sort()
-            for pbm in s4_contextual_pbms:
-                inj_deltas('Stephanie 4', 'PBM', pbm)
+            s4_contextual_morphs.sort()
+            for morph_name in s4_contextual_morphs:
+                inj_deltas('Stephanie 4', 'PBM' if not morph_name.startswith('S4') else 'FBM',
+                           morph_name)
 
     # V4 Muscle Morphs
     if figure_type == 'Victoria 4' and 'Body' in dossier and 'Muscle' in dossier['Body']:
@@ -305,6 +314,10 @@ actor BODY:1
     for parm in dossier['Body']['Special'].values():
         special_parm(parm)
 
+        if 'Actors' in parm:
+            for actor in parm['Actors'].split(','):
+                hide_morphs[actor.strip()].append(parm['Name'])
+
     # write DAZ body parameters
     body = v4_sample.Actor('BODY')
     for morph_name, morph_values in morphs['BODY'].items():
@@ -350,8 +363,9 @@ actor hip:1
 	channels
 		{
 		groups
-			{
-			groupNode General
+			{''', file=pz2)
+    if 'Hip' in dossier and 'Scale' in dossier['Hip']:
+        print('''			groupNode General
 				{
 				groupNode Transforms
 					{
@@ -360,15 +374,15 @@ actor hip:1
 						collapsed 1
 						}
 					}
-				}
-			groupNode Morphs | Shapes
+				}''', file=pz2)
+    print('''			groupNode Morphs | Shapes
 				{
 				collapsed 0
 				groupNode Morphs++
 					{
 					collapsed 0
 					}''', file=pz2)
-    if 'PubicDepth' in s4_contextual_pbms:
+    if 'PubicDepth' in s4_contextual_morphs:
         print('''				groupNode Stephanie 4
 					{
 					collapsed 0
@@ -388,10 +402,17 @@ actor hip:1
         tweak_parm(morph_values)
         print('			}', file=pz2)
 
-    # hip Y position
-    print('		translateY ytran\n			{', file=pz2)
-    tweak_parm(dossier['Hip']['yTranslate'], TRANSLATION_MULTIPLIER_HIP)
-    print('			}', file=pz2)
+    if 'Hip' in dossier:
+
+        if 'yTranslate' in dossier['Hip']:
+            print('		translateY ytran\n			{', file=pz2)
+            tweak_parm(dossier['Hip']['yTranslate'], TRANSLATION_MULTIPLIER_HIP)
+            print('			}', file=pz2)
+
+        if 'Scale' in dossier['Hip']:
+            print('		scale scale\n			{', file=pz2)
+            tweak_parm(dossier['Hip']['Scale'], SCALE_MULTIPLIER, True)
+            print('			}', file=pz2)
 
     # end hip
     print('		}\n	}', file=pz2)
@@ -426,7 +447,7 @@ actor abdomen:1
 				}
 			}''', file=pz2)
 
-        # write DAZ chest parameters
+        # write DAZ abdomen parameters
         for morph_name, morph_values in morphs['abdomen'].items():
             print(f'		targetGeom {morph_name}', file=pz2)
             print('			{', file=pz2)
@@ -436,7 +457,7 @@ actor abdomen:1
         # end abdomen
         print('		}\n	}', file=pz2)
 
-    if len(morphs['chest']) > 0 and (not for_ds and figure_type == 'Victoria 4') or 'Chest' in dossier:
+    if len(morphs['chest']) > 0 or (not for_ds and figure_type == 'Victoria 4') or 'Chest' in dossier:
 
         # begin chest
         print('''
@@ -495,6 +516,10 @@ actor chest:1
     	channels
     		{''', file=pz2)
 
+        # hide sub-morphs
+        for morph_name in hide_morphs['neck']:
+            hide_morph(morph_name)
+
         if 'Neck' in dossier and 'Scale' in dossier['Neck']:
             print('		scale scale\n			{', file=pz2)
             tweak_parm(dossier['Neck']['Scale'], SCALE_MULTIPLIER, True)
@@ -528,6 +553,10 @@ actor head:1
 					}
 				}
 			}''', file=pz2)
+
+    # hide sub-morphs
+    for morph_name in hide_morphs['head']:
+        hide_morph(morph_name)
 
     # write DAZ head parameters
     head = v4_sample.Actor('head')
@@ -792,7 +821,10 @@ actor ''' + leg_side + '''Thigh:1
 	{
 	channels
 		{''', file=pz2)
-            if not for_ds:
+            if not for_ds and (
+                    ('Thighs' not in dossier or 'Scale' not in dossier['Thighs']) or
+                    ('Muscle' in dossier['Body'] and 'VastusMedialus' in dossier['Body']['Muscle'])
+            ):
                 print('''		groups
 			{''', file=pz2)
                 if 'Thighs' not in dossier or 'Scale' not in dossier['Thighs']:
@@ -829,10 +861,13 @@ actor ''' + leg_side + '''Thigh:1
 actor ''' + leg_side + '''Shin:1
 	{
 	channels
-		{
-		groups
-			{
-			groupNode General
+		{''', file=pz2)
+
+            if not for_ds:
+                print('''		groups
+			{''', file=pz2)
+                if 'Shins' not in dossier or 'Scale' not in dossier['Shins']:
+                    print('''			groupNode General
 				{
 				groupNode Transforms
 					{
@@ -841,25 +876,31 @@ actor ''' + leg_side + '''Shin:1
 						collapsed 1
 						}
 					}
-				}
-			groupNode Morphs | Shapes
+				}''')
+                if 'CalvesFlex' in dynamic_pbms:
+                    print('''			groupNode Morphs | Shapes
 				{
 				collapsed 0
 				groupNode Morphs++
 					{
 					collapsed 0
 					}
-				}
-			}
-		}
-	}''', file=pz2)
+				}''', file=pz2)
+                print('			}', file=pz2)
+
+            if 'Shins' in dossier and 'Scale' in dossier['Shins']:
+                print('		scale scale\n			{', file=pz2)
+                tweak_parm(dossier['Shins']['Scale'], SCALE_MULTIPLIER)
+                print('			}', file=pz2)
+
+            print('		}\n	}', file=pz2)
 
         if not for_ds and 'Feet' in dossier:
             print('''
 actor ''' + leg_side + '''Foot:1
-		{
-		channels
-			{''', file=pz2)
+	{
+	channels
+		{''', file=pz2)
             if not for_ds and 'Feet' in dossier and 'Scale' in dossier['Feet']:
                 print('''		groups
 			{''', file=pz2)
@@ -878,7 +919,7 @@ actor ''' + leg_side + '''Foot:1
 
             if 'Feet' in dossier and 'Scale' in dossier['Feet']:
                 print('		scale scale\n			{', file=pz2)
-                tweak_parm(scale, SCALE_MULTIPLIER, True)
+                tweak_parm(dossier['Feet']['Scale'], SCALE_MULTIPLIER, True)
                 print('			}', file=pz2)
 
             print('		}\n	}', file=pz2)
@@ -910,7 +951,7 @@ actor ''' + leg_side + '''Toe:1
 						collapsed 0
 						}
 					}
-				}''')
+				}''', file=pz2)
 
                 print('''			groupNode Morphs | Shapes
 				{
@@ -960,8 +1001,12 @@ def rem_deltas(group: str, type: str, name: str) -> str:
           file=pz2)
 
 
-def special_parm(parm: Dict[str, Any]):
-    global pz2
+def special_parm(parm: Dict[str, Any]) -> None:
+    global pz2, morphs
+
+    parm_type = 'valueParm'
+    if 'IsMorphTarget' in parm:
+        parm_type = 'targetGeom'
 
     init_value = '0'
     if 'Default' in parm:
@@ -981,7 +1026,7 @@ def special_parm(parm: Dict[str, Any]):
     if 'Max' in parm:
         max_val = parm['Max']
 
-    print('''		valueParm ''' + parm['Name'] + '''
+    print('''		''' + parm_type + ''' ''' + parm['Name'] + '''
 			{
 			initValue ''' + init_value + '''
 			min ''' + min_val + '''
@@ -1044,7 +1089,7 @@ def poser_float(s: str, multiplier: float) -> str:
         return str(fl).rstrip('0').rstrip('.')
 
 
-def value_op_delta_add(value_ops: Dict[str, str], multiplier: float):
+def value_op_delta_add(value_ops: Dict[str, str], multiplier: float) -> None:
     for parm_name, parm_value in value_ops.items():
         print(f'''			valueOpDeltaAdd
 				Figure 1
@@ -1075,6 +1120,14 @@ def any_in_str(string: str, list: List[str]) -> bool:
         if i in string:
             return True
     return False
+
+
+def hide_morph(morph_name: str) -> None:
+    global pz2
+    print('''		targetGeom ''' + morph_name + '''
+			{
+			hidden 1
+			}''', file=pz2)
 
 
 if __name__ == '__main__':

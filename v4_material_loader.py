@@ -162,7 +162,7 @@ def inject_material(
 
     # opacity
     trans = 0
-    if mat_name in ['5_Cornea', '7_EyeSurface', '7_Tear', 'Invis', 'Pubic_Hair', 'Preview'] or \
+    if mat_name in ['1_Eyebrow', '5_Cornea', '7_EyeSurface', '7_Tear', 'Invis', 'Pubic_Hair', 'Preview'] or \
             opacity_texture is not None:
         trans = 1
 

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import character_dossier
 
@@ -23,6 +23,8 @@ def create_injector(
     dossier = character_dossier.load_dossier(figure_name, version, revision)
     if dossier is None:
         raise Exception('This figure has no dossier!')
+    version = character_dossier.get_version_from_dossier_path(
+        character_dossier.get_latest_dossier_path(figure_name))
 
     # determine the libraries
     source_library: Optional[str] = None
@@ -37,12 +39,48 @@ def create_injector(
     elif target_library is None:
         target_library = source_library
 
+    # ------------------------PYTHON SCRIPT-------------------------
+
+    # determine the path of the auto-generated Python script for this character
+    py3_name = figure_name.lower() + '_v' + version.replace('.', '_') + '.py'
+    py3_dir = os.path.join(target_library, 'Runtime', 'Python', 'poserScripts', 'Character')
+    if not os.path.isdir(py3_dir):
+        os.makedirs(py3_dir)
+    py3 = open(os.path.join(py3_dir, py3_name), 'w')
+
+    # begin writing python
+    print(f"""import poser
+
+# this script is executed twice
+figure = poser.Scene().CurrentFigure()
+if figure.Name() != '{figure_name.upper()}':
+    figure.SetName('{figure_name.upper()}')""", file=py3)
+
+    if 'Special' in dossier['Body']:
+        print("\n    body = figure.Actor('BODY')", file=py3)
+        for parm in dossier['Body']['Special'].values():
+            if 'IsMorphTarget' not in parm:
+                print(f"    body.CreateValueParameter('{parm['Name']}')", file=py3)
+            else:
+                morph_target_path = os.path.join(
+                    os.environ['ONEDRIVE'], 'Projects', 'Characters', figure_name.capitalize(),
+                    'Sculpture on V4', parm['Name'] + '.obj')
+                print(f"    figure.LoadFullBodyMorph(\n        r'{morph_target_path}')", file=py3)
+
+    # end writing python
+    print("""
+else:
+    poser.ExecFile('figure_remove_empty_daz_params_silent.py')""", file=py3)
+
+    # -------------------------POSER SCRIPT-------------------------
+
     # determine the path of PZ2
     pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', '!' + figure_name)
     if not os.path.isdir(pz2_dir):
         os.makedirs(pz2_dir)
-    pz2_path = os.path.join(pz2_dir, f'Test{"-DS" if for_ds else ""}.pz2')
-    pz2 = open(pz2_path, 'w', encoding='cp1252', newline='\n')
+    pz2 = open(
+        os.path.join(pz2_dir, f'Test{"-DS" if for_ds else ""}.pz2'),
+        'w', encoding='cp1252', newline='\n')
 
     # determine figure type
     figure_type = list(dossier['Figure'].keys())[0]
@@ -52,14 +90,10 @@ def create_injector(
         'Michael 4': 'Michael 4',
     }[figure_type]
 
-    # begin writing
     print('{\n\nversion\n	{\n	number 14\n	}\n', file=pz2)
 
     # primary Python script
-    version = character_dossier.get_version_from_dossier_path(
-        character_dossier.get_latest_dossier_path(figure_name))
-    print('runPythonScript "Runtime:Python:poserScripts:MAHDI:_' + figure_name.lower() + '_v' + \
-          version.replace('.', '_') + '.py"', file=pz2)
+    print('runPythonScript "Runtime:Python:poserScripts:Character:' + py3_name + '"', file=pz2)
     print('', file=pz2)
 
     morphs: Dict[str, Dict[str, Any]] = {
@@ -223,10 +257,10 @@ def create_injector(
         for morph_name, morph_values in dossier['Body']['Morphs | Shapes']['Muscle'].items():
             inj_deltas('Muscle', 'PBM', morph_name)
             morphs['BODY']['PBM' + morph_name] = morph_values
-    print('', file=pz2)
 
-    if 'XandM Jaw-dropper Breast Morphs' in dossier['Figure']:
-        print('\n// XandM Jaw-Dropper Breast Morphs', file=pz2)
+    # 3rd party morphs
+    if 'Chest' in dossier and 'JawDropper' in dossier['Chest']:
+        print('\n// XandM Jaw-dropper Breast Morphs', file=pz2)
         if not for_ds:
             print('readScript "Runtime:Libraries:Pose:XandM Curves+:Breast Morphs_Jaw-dropper:'
                   '!INJ JawDropper Breast Morphs.pz2"', file=pz2)
@@ -274,24 +308,7 @@ actor BODY:1
 
     # write custom body parameters
     for parm in dossier['Body']['Special'].values():
-        print('''		valueParm ''' + parm['Name'] + '''
-			{
-			name ''' + parm['Name'] + '''
-			initValue ''' + (parm['Default'] if 'Default' in parm else '0') + '''
-			hidden 0
-			enabled 1
-			forceLimits 1
-			min ''' + (parm['Min'] if 'Min' in parm else '0') + '''
-			max ''' + (parm['Max'] if 'Max' in parm else '1') + '''
-			trackingScale ''' + (parm['TrackingScale'] if 'TrackingScale' in parm else '0.004') + '''
-			masterSynched 0
-			keys
-				{
-				static  0
-				k  0  ''' + (parm['Default'] if 'Default' in parm else '0') + '''
-				}
-			interpStyleLocked 0
-			}''', file=pz2)
+        special_parm(parm)
 
     # write DAZ body parameters
     body = figure.Actor('BODY')
@@ -303,12 +320,12 @@ actor BODY:1
         print('			}', file=pz2)
         if not parm.IsMorphTarget() and isinstance(morph_values, dict) and \
                 (len(morph_values) > 1 or list(morph_values.keys())[0] != 'N'):
-            for special_parm, special_value in morph_values.items():
-                if special_parm == 'N': continue
+            for special_param, special_value in morph_values.items():
+                if special_param == 'N': continue
                 actor_name = get_actor_name_by_morph_name(morph_name)
                 if morph_name not in morphs[actor_name]:
                     morphs[actor_name][morph_name] = {}
-                morphs[actor_name][morph_name][special_parm] = special_value
+                morphs[actor_name][morph_name][special_param] = special_value
 
     # body scale
     print('		propagatingScale scale\n			{', file=pz2)
@@ -440,12 +457,25 @@ actor abdomen:1
 				}''', file=pz2)
     print('''			}''', file=pz2)
 
+    # write custom chest morphs
+    if 'Chest' in dossier and 'Special' in dossier['Chest']:
+        for parm in dossier['Chest']['Special'].values():
+            special_parm(parm)
+
     # write DAZ chest parameters
     for morph_name, morph_values in morphs['chest'].items():
         print(f'		targetGeom {morph_name}', file=pz2)
         print('			{', file=pz2)
         tweak_parm(morph_values)
         print('			}', file=pz2)
+
+    # 3rd-party morphs
+    if 'Chest' in dossier and 'JawDropper' in dossier['Chest']:
+        for morph_name, user_entry in dossier['Chest']['JawDropper']:
+            print(f'		targetGeom {morph_name}', file=pz2)
+            print('			{', file=pz2)
+            tweak_parm(user_entry)
+            print('			}', file=pz2)
 
     # end chest
     print('		}\n	}', file=pz2)
@@ -727,6 +757,20 @@ actor ''' + side + '''Toe:1
 		}
 	}''', file=pz2)
 
+    # figure settings
+    print('''\n\n
+figure
+	{''', file=pz2)
+
+    if 'Subdivision' in dossier['Figure']:
+        print('	subdivLevels 0', file=pz2)
+        print('	subdivRenderLevels ' + dossier['Figure']['Subdivision'], file=pz2)
+
+    # skinning method
+    print('	skinType 3', file=pz2)  # Poser Unimesh
+
+    print('	}', file=pz2)
+
     # end writing
     print('\n}', file=pz2)
     pz2.close()
@@ -742,6 +786,45 @@ def rem_deltas(group: str, type: str, name: str) -> str:
     global pz2, figure_type
     print(f'readScript "Runtime:Libraries:!DAZ:{figure_type}:Deltas:{group}:RemDeltas.{type}{name}.pz2"',
           file=pz2)
+
+
+def special_parm(parm: Dict[str, Any]):
+    global pz2
+
+    init_value = '0'
+    if 'Default' in parm:
+        init_value = parm['Default']
+    elif 'IsMorphTarget' in parm:
+        init_value = '1'
+
+    sensitivity = '0.004'
+    if 'Sensitivity' in parm:
+        sensitivity = parm['Sensitivity']
+    elif 'IsMorphTarget' in parm:
+        sensitivity = '1'
+
+    min_val, max_val = '0', '1'
+    if 'Min' in parm:
+        min_val = parm['Min']
+    if 'Max' in parm:
+        max_val = parm['Max']
+
+    print('''		valueParm ''' + parm['Name'] + '''
+			{
+			initValue ''' + init_value + '''
+			min ''' + min_val + '''
+			max ''' + max_val + '''
+			sensitivity ''' + sensitivity + '''
+			keys
+				{
+				k  0  ''' + init_value + '''
+				}''', file=pz2)
+
+    if 'Dependencies' in parm:
+        for dep in parm['Dependencies']:
+            value_op_delta_add(dep, 1)
+
+    print('			}', file=pz2)
 
 
 def tweak_parm(
@@ -771,12 +854,7 @@ def tweak_parm(
 				k  0  ''' + poser_float(value, multiplier) + '''
 				}''', file=pz2)
     if len(value_ops) != 0:
-        for k, v in value_ops.items():
-            print(f'''			valueOpDeltaAdd
-				Figure 1
-				BODY:1
-				{k}
-				deltaAddDelta {value_op_number(v, multiplier)}''', file=pz2)
+        value_op_delta_add(value_ops, multiplier)
 
 
 def poser_float(s: str, multiplier: float) -> str:
@@ -790,6 +868,15 @@ def poser_float(s: str, multiplier: float) -> str:
                 fl = rounded
                 break
         return str(fl).rstrip('0').rstrip('.')
+
+
+def value_op_delta_add(value_ops: Dict[str, str], multiplier: float):
+    for parm_name, parm_value in value_ops.items():
+        print(f'''			valueOpDeltaAdd
+				Figure 1
+				BODY:1
+				{parm_name}
+				deltaAddDelta {value_op_number(parm_value, multiplier)}''', file=pz2)
 
 
 def value_op_number(s: str, multiplier: float) -> str:

@@ -30,7 +30,7 @@ def load_dossier(
 
 
 def get_dossier_dir(figure_name: str) -> str:
-    return os.environ['ONEDRIVE'] + rf'\Projects\Characters\{figure_name.capitalize()}\Dossier'
+    return os.path.join(os.environ['ONEDRIVE'], 'Projects', 'Characters', figure_name.capitalize(), 'Dossier')
 
 
 def get_latest_dossier_path(figure_name: str) -> Optional[str]:

@@ -415,11 +415,11 @@ actor hip:1
         if not is_never_muscular or \
                 'PubicDepth' in s4_contextual_morphs or \
                 ('Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle']):
-            if not is_never_muscular:
-                print('''			groupNode Morphs | Shapes
+            print('''			groupNode Morphs | Shapes
 				{
-				collapsed 0
-				groupNode Morphs++
+				collapsed 0''', file=pz2)
+            if not is_never_muscular:
+                print('''				groupNode Morphs++
 					{
 					collapsed 0
 					}''', file=pz2)
@@ -1405,9 +1405,10 @@ def value_op_delta_add(
 
 
 def value_op_number(s: str, multiplier: float, negate: bool) -> str:
-    fl = float(s.strip()[1:-2]) * multiplier
+    ss = s.strip()
+    fl = float((ss[-1] if ss[-1] == '-' else '') +  ss[1:-2]) * multiplier
     if negate: fl = -fl
-    return f'{s[-1] if s[-1] == "-" else ""}{poser_float(fl)}'
+    return poser_float(fl)
 
 
 def get_actor_name_by_morph_name(name: str) -> str:

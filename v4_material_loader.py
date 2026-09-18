@@ -208,6 +208,12 @@ def inject_material(
         if 'ScatterRadius' in eyes_shader:
             sss_radii = get_value_for_mat(
                 eyes_shader['ScatterRadius'], '5_Sclera', chosen_mode, None)
+    if sss_radii is not None:
+        if ',' in sss_radii:
+            spl = sss_radii.split(',')
+            sss_radii = (float(spl[0].strip()), float(spl[1].strip()), float(spl[2].strip()))
+        else:
+            sss_radii = (float(sss_radii.strip()), float(sss_radii.strip()), float(sss_radii.strip()))
 
     # SSS scale
     sss_scale = None
@@ -276,10 +282,9 @@ def inject_material(
 
     # PhysicalSurface : SSS Radii
     if sss_radii is not None:
-        spl = sss_radii.split(',')
-        phs.InputByInternalName('ScatterDistR').SetFloat(float(spl[0].strip()))
-        phs.InputByInternalName('ScatterDistG').SetFloat(float(spl[1].strip()))
-        phs.InputByInternalName('ScatterDistB').SetFloat(float(spl[2].strip()))
+        phs.InputByInternalName('ScatterDistR').SetFloat(sss_radii[0])
+        phs.InputByInternalName('ScatterDistG').SetFloat(sss_radii[1])
+        phs.InputByInternalName('ScatterDistB').SetFloat(sss_radii[2])
 
     # PhysicalSurface : SSS Scale
     if sss_scale is not None:
@@ -423,8 +428,7 @@ def inject_material(
                 color_bsdf.InputByInternalName('Color').SetColor(*color)
                 if sss_scale is not None:
                     color_bsdf.InputByInternalName('Scale').SetFloat(float(sss_scale))
-                color_bsdf.InputByInternalName('Radius') \
-                    .SetColor(float(spl[0].strip()), float(spl[1].strip()), float(spl[2].strip()))
+                color_bsdf.InputByInternalName('Radius').SetColor(sss_radii[0], sss_radii[1], sss_radii[2])
                 color_bsdf.InputByInternalName('Scatter Group ID').SetFloat(sss_group)
                 color_bsdf.InputByInternalName('Method').SetFloat(0)
                 color_bsdf.OutputByInternalName('BSSRDF').ConnectToInput(clo1.InputByInternalName('Closure1'))
@@ -545,7 +549,7 @@ def get_shader(mat_name: str, manifest: Dict[str, Any]) -> Tuple[str, Dict[str, 
     # merge super-shaders into sub-shaders
     if 'Skin' in manifest and \
             (mat_name in ['1_EyeSocket', '1_Lip', '1_Nostril', '1_SkinFace',
-                          '3_SkinArm', '3_SkinForearm', '3_SkinHand', '3_SkinLeg']
+                          '3_SkinArm', '3_SkinFoot', '3_SkinForearm', '3_SkinHand', '3_SkinLeg']
              or mat_name.startswith('2_')):
         shader = {**manifest['Skin'], **shader}
     if 'Eyes' in manifest and mat_name == '5_Lacrimal':

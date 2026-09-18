@@ -24,10 +24,12 @@
       <w>subdivlevels</w>
       <w>subdivrenderlevels</w>
       <w>synched</w>
+      <w>translatex</w>
       <w>vastuslateralus</w>
       <w>vastusmedialus</w>
       <w>xrot</w>
       <w>xscale</w>
+      <w>xtran</w>
       <w>yrot</w>
       <w>ytran</w>
       <w>ytranslate</w>

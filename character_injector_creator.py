@@ -2,6 +2,7 @@ import os
 import shutil
 from typing import Any, Dict, Iterable, List, Optional
 
+POSER_VERSION = 14
 SCALE_MULTIPLIER = 0.01
 TRANSLATION_MULTIPLIER_HIP = 0.0038149298209603575  # synchronised with Espinela's hip
 TRANSLATION_MULTIPLIER_HEAD = 0.0038125
@@ -13,7 +14,7 @@ def create_injector(
         character_version: str,
         for_ds: bool,
 ) -> None:
-    global dossier, pz2, figure_type, figure_type_abbr
+    global dossier, py3, pz2, figure_type, figure_type_abbr, penis
 
     # determine the libraries
     source_library: Optional[str] = None
@@ -39,6 +40,7 @@ def create_injector(
         figure_type_abbr = 'V4'
     else:
         figure_type_abbr = 'M4'
+    penis = None
 
     # ------------------------PYTHON SCRIPT-------------------------
 
@@ -48,20 +50,13 @@ def create_injector(
     if not os.path.isdir(py3_dir):
         os.makedirs(py3_dir)
     py3 = open(os.path.join(py3_dir, py3_name), 'w')
-
-    # begin writing python
-    print(f"""import poser
-
-# this script is executed twice
-figure = poser.Scene().CurrentFigure()
-if figure.Name() != '{character_name.upper()}':
-    figure.SetName('{character_name.upper()}')""", file=py3)
+    write_python_script_header(character_name)
 
     if 'Special' in dossier['Body'] or ('Chest' in dossier and 'Special' in dossier['Chest']):
         print("\n    body = figure.Actor('BODY')", file=py3)
 
     # custom body parameters and full body morphs
-    special_morph_injectors = []
+    special_morph_injectors: List[str] = []
     if 'Special' in dossier['Body']:
         for parm in dossier['Body']['Special'].values():
             if 'MorphTarget' not in parm:
@@ -82,13 +77,11 @@ if figure.Name() != '{character_name.upper()}':
         for morph in dossier['Chest']['Special'].values():
             morph_obj = morph_target_path(character_name, morph['Name'], 'obj')
             print(f"    figure.LoadFullBodyMorph(\n        r'{morph_obj}')", file=py3)
-            print(f"    body.DeleteTarget(\n        r'{morph['Name']}')", file=py3)
+            print(f"    body.DeleteTarget('{morph['Name']}')", file=py3)
 
-    # end writing python
-    print("""
-else:
-    poser.ExecFile('../MAHDI/figure_remove_empty_daz_params_silent.py')
-    poser.ExecFile('../MAHDI/character_material_loader.py')""", file=py3)
+    print('\nelse:', file=py3)
+    write_python_script_footer()
+    py3.close()
 
     # -------------------------POSER SCRIPT-------------------------
 
@@ -100,9 +93,7 @@ else:
     pz2 = open(
         os.path.join(pz2_dir, f'{character_name} v{character_version}{"-DS" if for_ds else ""}.pz2'),
         'w', encoding='cp1252', newline='\n')
-
-    # Poser version
-    print('{\n\nversion\n	{\n	number 14\n	}\n', file=pz2)
+    write_poser_script_header()
 
     # primary Python script
     print('runPythonScript "Runtime:Python:poserScripts:Characters:' + py3_name + '"', file=pz2)
@@ -254,7 +245,7 @@ else:
         'ArmsFront-Back', 'ArmsUp-Down', 'EyesSide-Side', 'EyesUp-Down', 'HandGrasp', 'HandSpread',
         'IndexGrasp', 'lArmDown', 'lArmUp', 'MiddleGrasp', 'NeckHeadBend', 'NeckHeadSide-Side',
         'NeckHeadTwist', 'PinkyGrasp', 'rArmDown', 'rArmUp', 'RingGrasp', 'ShoulderShrug', 'ThumbGrasp',
-        'TorsoBend', 'TorsoSide-Side', 'TorsoTwist', 'WaistBend', 'WaistBendBack', 'WaistBendFront']:
+        'TorsoBend', 'TorsoSide-Side', 'TorsoTwist', 'WaistBend']:
         inj_deltas('Morphs++', 'CTRL', ctrl)
 
     # V4/M4 Elite Morphs
@@ -453,7 +444,6 @@ actor hip:1
         print('			}', file=pz2)
 
     if 'Hip' in dossier:
-
         if 'yTranslate' in dossier['Hip']:
             print('		translateY ytran\n			{', file=pz2)
             tweak_parm(dossier['Hip']['yTranslate'], TRANSLATION_MULTIPLIER_HIP)
@@ -1042,6 +1032,145 @@ figure
     print('}', file=pz2)
     pz2.close()
 
+    # ----------------------------Penis-----------------------------
+
+    if 'Penis' in dossier and figure_type == 'Michael 4':
+        penis = dossier['Penis']
+        py3_name = character_name.lower() + '_v' + character_version.replace('.', '_') + \
+                   '_' + penis['Name'].lower() + '.py'
+        py3 = open(os.path.join(py3_dir, py3_name), 'w')
+        write_python_script_header(character_name)
+        print('\nelse:', file=py3)
+        write_python_script_footer()
+        py3.close()
+
+        pz2 = open(os.path.join(
+            pz2_dir, f'{character_name} v{character_version} - {penis["Name"]}{"-DS" if for_ds else ""}.pz2'),
+            'w', encoding='cp1252', newline='\n')
+        write_poser_script_header()
+        print('runPythonScript "Runtime:Python:poserScripts:Characters:' + py3_name + '"', file=pz2)
+
+        # begin penis body
+        print('''\n\n
+actor BODY:1
+	{
+	channels
+		{''', file=pz2)
+        if not for_ds:
+            print('		groups\n			{', file=pz2)
+            print('''			groupNode General
+				{
+				collapsed 1
+				groupNode Transforms
+					{
+					groupNode Translation
+						{
+						collapsed 1
+						}
+					groupNode Rotation
+						{
+						collapsed 1
+						}
+					}
+				}
+			groupNode MorphForms
+				{
+				collapsed 0
+				}''', file=pz2)
+
+            if 'Special' in penis:
+                print('			groupNode Special\n				{', file=pz2)
+                for parm in penis['Special'].values():
+                    print('				parmNode ' + parm['Name'], file=pz2)
+                print('				}', file=pz2)
+
+            print('			}', file=pz2)
+
+        if 'Special' in penis:
+            for parm in penis['Special'].values():
+                special_parm(parm)
+
+        # full-body morphs
+        if 'Body' in dossier and 'Morphs++' in dossier['Body'] and \
+                'Full Body' in dossier['Body']['Morphs++']:
+            for fbm_name, fbm_value in dossier['Body']['Morphs++']['Full Body'].items():
+                print(f'		targetGeom FBM{fbm_name}', file=pz2)
+                print('			{', file=pz2)
+                tweak_parm(fbm_value)
+                print('			}', file=pz2)
+
+        # partial body morphs
+        if 'Body' in dossier:
+            for morph_name in ['ScrotumSize']:
+                if morph_name in penis['Body']:
+                    print(f'		targetGeom PBM{morph_name}', file=pz2)
+                    print('			{', file=pz2)
+                    tweak_parm(penis['Body'][morph_name])
+                    print('			}', file=pz2)
+
+        # body scale
+        print('		propagatingScale scale\n			{', file=pz2)
+        scale = dossier['Body']['Scale']
+        if isinstance(scale, dict):
+            scale = scale['N']
+        tweak_parm(scale, SCALE_MULTIPLIER)
+        print('			}', file=pz2)
+
+        print('		}\n	}', file=pz2)
+
+        # penis thighs
+        if not for_ds:
+            for leg_side in ['r', 'l']:
+                print('''
+actor ''' + leg_side + '''Thigh:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode General
+				{
+				collapsed 1
+				}
+			groupNode Morphs | Shapes
+				{
+				collapsed 1
+				}
+			}
+		}
+	}''', file=pz2)
+
+        print('}', file=pz2)
+        pz2.close()
+
+
+def write_python_script_header(character_name: str) -> None:
+    global py3
+    print(f"""import poser
+
+# this script is executed twice
+figure = poser.Scene().CurrentFigure()
+if figure.Name() != '{character_name.upper()}':
+    figure.SetName('{character_name.upper()}')""", file=py3)
+
+
+def write_python_script_footer() -> None:
+    global py3
+    print("""    poser.ExecFile('../MAHDI/figure_remove_empty_daz_params_silent.py')
+    poser.ExecFile('../MAHDI/character_material_loader.py')""", file=py3)
+
+
+def write_poser_script_header() -> None:
+    global pz2
+    print('{\n\nversion\n	{\n	number ' + str(POSER_VERSION) + '\n	}\n', file=pz2)
+
+
+def morph_target_path(character_name: str, morph_name: str, ext: str) -> str:
+    global figure_type_abbr
+    return os.path.join(
+        os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name,
+        'Sculpture on ' + figure_type_abbr, morph_name + '.' + ext)
+
 
 def inj_deltas(group: str, type: str, name: str) -> str:
     global pz2, figure_type
@@ -1055,15 +1184,8 @@ def rem_deltas(group: str, type: str, name: str) -> str:
           file=pz2)
 
 
-def morph_target_path(character_name: str, morph_name: str, ext: str) -> str:
-    global figure_type_abbr
-    return os.path.join(
-        os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name,
-        'Sculpture on ' + figure_type_abbr, morph_name + '.' + ext)
-
-
 def special_parm(parm: Dict[str, Any]) -> None:
-    global pz2, morphs
+    global pz2
 
     parm_type = 'valueParm'
     if 'MorphTarget' in parm:
@@ -1075,17 +1197,21 @@ def special_parm(parm: Dict[str, Any]) -> None:
     elif 'MorphTarget' in parm:
         init_value = '1'
 
+    min_val, max_val = '0', '1'
+    if 'Min' in parm:
+        min_val = parm['Min']
+    if 'Max' in parm:
+        max_val = parm['Max']
+
     sensitivity = '0.004'
     if 'Sensitivity' in parm:
         sensitivity = parm['Sensitivity']
     elif 'MorphTarget' in parm:
         sensitivity = '1'
 
-    min_val, max_val = '0', '1'
-    if 'Min' in parm:
-        min_val = parm['Min']
-    if 'Max' in parm:
-        max_val = parm['Max']
+    master_synched = '0'
+    if 'MasterSynched' in parm:
+        master_synched = '1'
 
     print('''		''' + parm_type + ''' ''' + parm['Name'] + '''
 			{
@@ -1093,6 +1219,7 @@ def special_parm(parm: Dict[str, Any]) -> None:
 			min ''' + min_val + '''
 			max ''' + max_val + '''
 			trackingScale ''' + sensitivity + '''
+			masterSynched ''' + master_synched + '''
 			keys
 				{
 				k  0  ''' + init_value + '''
@@ -1101,7 +1228,9 @@ def special_parm(parm: Dict[str, Any]) -> None:
     if 'Dependencies' in parm:
         value_ops: Dict[str, str] = {}
         for dep_abbr, dep_value in parm['Dependencies'].items():
-            value_ops[dossier['Body']['Special'][dep_abbr]['Name']] = dep_value
+            specials = dossier['Body']['Special']
+            if penis is not None: specials = penis['Special']
+            value_ops[specials[dep_abbr]['Name']] = dep_value
         value_op_delta_add(value_ops, 1, False)
 
     print('			}', file=pz2)
@@ -1115,7 +1244,7 @@ def tweak_parm(
         check_min: Optional[float] = None,
         check_max: Optional[float] = None,
 ) -> None:
-    global dossier, pz2, dossier
+    global dossier, pz2
 
     value = None
     value_ops = {}
@@ -1123,8 +1252,10 @@ def tweak_parm(
         for k, v in user_entry.items():
             if k == 'N':
                 value = user_entry['N']
-            else:
+            elif penis is None:
                 value_ops[dossier['Body']['Special'][k]['Name']] = v
+            else:
+                value_ops[penis['Special'][k]['Name']] = v
     else:
         value = user_entry
 

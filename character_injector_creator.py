@@ -454,8 +454,7 @@ actor hip:1
             tweak_parm(dossier['Hip']['Scale'], SCALE_MULTIPLIER)
             print('			}', file=pz2)
 
-    # end hip
-    print('		}\n	}', file=pz2)
+    end_actor()  # hip
 
     if not for_ds or len(morphs['abdomen']) > 0 or 'Abdomen' in dossier:
 
@@ -494,8 +493,7 @@ actor abdomen:1
             tweak_parm(morph_values)
             print('			}', file=pz2)
 
-        # end abdomen
-        print('		}\n	}', file=pz2)
+        end_actor()  # abdomen
 
     if 'Chest' in dossier or len(hide_morphs['chest']) > 0 or len(morphs['chest']) > 0 or \
             (not for_ds and figure_type == 'Victoria 4'):
@@ -550,8 +548,7 @@ actor chest:1
                 tweak_parm(user_entry)
                 print('			}', file=pz2)
 
-        # end chest
-        print('		}\n	}', file=pz2)
+        end_actor()  # chest
 
     if 'Neck' in dossier or len(hide_morphs['neck']) > 0 or len(morphs['neck']) > 0:
 
@@ -571,8 +568,7 @@ actor neck:1
             tweak_parm(dossier['Neck']['yScale'], SCALE_MULTIPLIER, unhide=True)
             print('			}', file=pz2)
 
-        # end neck
-        print('		}\n	}', file=pz2)
+        end_actor()  # neck
 
     # begin head
     print('''\n\n
@@ -618,8 +614,7 @@ actor head:1
         tweak_parm(dossier['Head']['Scale'], SCALE_MULTIPLIER, unhide=True)
         print('			}', file=pz2)
 
-    # end head
-    print('		}\n	}', file=pz2)
+    end_actor()  # head
 
     # eyes
     if 'Eyes' in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
@@ -777,7 +772,7 @@ actor ''' + arm_side + '''Collar:1
                 tweak_parm(dossier['Collars']['Scale'], SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
-            print('		}\n	}', file=pz2)
+            end_actor()  # collars
 
         # shoulders
         if not for_ds or 'Shoulders' in dossier:
@@ -816,7 +811,7 @@ actor ''' + arm_side + '''Shldr:1
                 tweak_parm(dossier['Shoulders']['Scale'], SCALE_MULTIPLIER)
                 print('			}', file=pz2)
 
-            print('		}\n	}', file=pz2)
+            end_actor()  # shoulders
 
         # forearms
         if not for_ds or 'Forearms' in dossier:
@@ -913,7 +908,7 @@ actor ''' + leg_side + '''Thigh:1
                 tweak_parm(dossier['Thighs']['Scale'], SCALE_MULTIPLIER)
                 print('			}', file=pz2)
 
-            print('		}\n	}', file=pz2)
+            end_actor()  # thighs
 
         if not for_ds or 'Shins' in dossier:
             print('''
@@ -954,7 +949,7 @@ actor ''' + leg_side + '''Shin:1
                 tweak_parm(dossier['Shins']['Scale'], SCALE_MULTIPLIER)
                 print('			}', file=pz2)
 
-            print('		}\n	}', file=pz2)
+            end_actor()  # shins
 
         if not for_ds and 'Feet' in dossier:
             print('''
@@ -981,7 +976,7 @@ actor ''' + leg_side + '''Foot:1
                 tweak_parm(dossier['Feet']['Scale'], SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
-            print('		}\n	}', file=pz2)
+            end_actor()  # feet
 
         if not for_ds or 'Feet' in dossier or 'Toes' in dossier:
             print('''
@@ -1012,21 +1007,10 @@ actor ''' + leg_side + '''Toe:1
                 tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
-            print('		}\n	}', file=pz2)
+            end_actor()  # toes
 
     # figure settings
-    print('''\n\n
-figure
-	{''', file=pz2)
-
-    if 'Subdivision' in dossier['Figure']:
-        print('	subdivLevels 0', file=pz2)
-        print('	subdivRenderLevels ' + dossier['Figure']['Subdivision'], file=pz2)
-
-    # skinning method
-    print('	skinType 3', file=pz2)  # Poser Unimesh
-
-    print('	}', file=pz2)
+    figure_settings(dossier['Figure'])
 
     # end writing
     print('}', file=pz2)
@@ -1036,11 +1020,47 @@ figure
 
     if 'Penis' in dossier and figure_type == 'Michael 4':
         penis = dossier['Penis']
+
+        fbms = {}
+        if 'Body' in dossier and 'Morphs++' in dossier['Body'] and \
+                'Full Body' in dossier['Body']['Morphs++']:
+            for fbm_name, fbm_value in dossier['Body']['Morphs++']['Full Body'].items():
+                fbms[fbm_name] = fbm_value
+
         py3_name = character_name.lower() + '_v' + character_version.replace('.', '_') + \
                    '_' + penis['Name'].lower() + '.py'
         py3 = open(os.path.join(py3_dir, py3_name), 'w')
-        write_python_script_header(character_name)
+        write_python_script_header(penis['Name'])
+
+        if 'Special' in penis:
+            print("\n    body = figure.Actor('BODY')", file=py3)
+            for parm in penis['Special'].values():
+                if 'MorphTarget' not in parm:
+                    print(f"    body.CreateValueParameter('{parm['Name']}')", file=py3)
+                else:
+                    raise Exception('Penis morphs not supported yet.')
+
         print('\nelse:', file=py3)
+
+        for actor in ['BODY', 'hip', 'gen01', 'gen04', 'testicles', 'rThigh', 'lThigh']:
+            print(f"    {actor} = figure.Actor('{actor}')", file=py3)
+
+            if actor != 'gen04':
+                for fbm in ['BodyBuilder', 'Definition', 'Emaciated', 'Jeremy', 'SuperHero', 'Smooth',
+                            'Young']:
+                    if actor == 'gen01' and fbm != 'Emaciated': continue
+                    if actor == 'testicles' and fbm != 'Jeremy': continue
+                    if fbm not in fbms:
+                        print(f"    {actor}.DeleteTarget('FBM{fbm}')", file=py3)
+                if actor == 'BODY':
+                    print("    BODY.RemoveValueParameter('Uncircumcised')", file=py3)
+                elif actor == 'hip':
+                    print("    hip.DeleteTarget('Uncircumcised')", file=py3)
+            else:
+                for i in range(1, 6):
+                    print(f"    gen04.DeleteTarget('PBMUncircumcised0{i}')", file=py3)
+            print("", file=py3)
+
         write_python_script_footer()
         py3.close()
 
@@ -1091,13 +1111,11 @@ actor BODY:1
                 special_parm(parm)
 
         # full-body morphs
-        if 'Body' in dossier and 'Morphs++' in dossier['Body'] and \
-                'Full Body' in dossier['Body']['Morphs++']:
-            for fbm_name, fbm_value in dossier['Body']['Morphs++']['Full Body'].items():
-                print(f'		targetGeom FBM{fbm_name}', file=pz2)
-                print('			{', file=pz2)
-                tweak_parm(fbm_value)
-                print('			}', file=pz2)
+        for fbm_name, fbm_value in fbms.items():
+            print(f'		targetGeom FBM{fbm_name}', file=pz2)
+            print('			{', file=pz2)
+            tweak_parm(fbm_value)
+            print('			}', file=pz2)
 
         # partial body morphs
         if 'Body' in dossier:
@@ -1108,7 +1126,7 @@ actor BODY:1
                     tweak_parm(penis['Body'][morph_name])
                     print('			}', file=pz2)
 
-        # body scale
+        # penis body scale
         print('		propagatingScale scale\n			{', file=pz2)
         scale = dossier['Body']['Scale']
         if isinstance(scale, dict):
@@ -1116,10 +1134,93 @@ actor BODY:1
         tweak_parm(scale, SCALE_MULTIPLIER)
         print('			}', file=pz2)
 
-        print('		}\n	}', file=pz2)
+        end_actor()  # penis body
+
+        # begin penis hip
+        print('''\n\n
+actor hip:1
+	{
+	channels
+		{''', file=pz2)
+
+        if 'Hip' in penis and 'Scale' in penis['Hip']:
+            print('		scale scale\n			{', file=pz2)
+            tweak_parm(penis['Hip']['Scale'], SCALE_MULTIPLIER, unhide=True, check_max=2)
+            print('			}', file=pz2)
+
+        for xyz in ['x', 'y', 'z']:
+            print('		scale' + xyz.upper() + ' ' + xyz + 'Scale\n			{', file=pz2)
+            if 'Hip' in penis and (xyz + 'Scale') in penis['Hip']:
+                tweak_parm(penis['Hip'][xyz + 'Scale'], SCALE_MULTIPLIER, unhide=True)
+            else:
+                print('			hidden 0', file=pz2)
+            print('			}', file=pz2)
+
+
+        for xyz in ['x', 'y', 'z']:
+            if 'Hip' in penis and (xyz + 'Translate') in penis['Hip']:
+                print('		translate' + xyz.upper() + ' ' + xyz + 'tran\n			{', file=pz2)
+                tweak_parm(penis['Hip'][xyz + 'Translate'], TRANSLATION_MULTIPLIER_HIP, unhide=True)
+                print('			}', file=pz2)
+
+        end_actor()  # penis hip
+
+        # penis abdomen
+        if not for_ds:
+            print('''
+actor abdomen:1
+	{
+	channels
+		{
+		groups
+			{
+			groupNode General
+				{
+				collapsed 1
+				}
+			}
+		}
+	}
+
+''', file=pz2)
+
+        for actor in ['gen01', 'gen02', 'gen03', 'gen04', 'testicles']:
+            print('''
+actor ''' + actor + ''':1
+	{
+	channels
+		{''', file=pz2)
+            if not for_ds and actor in ['gen01', 'gen04', 'testicles']:
+                print('''		groups
+			{
+			groupNode Morphs | Shapes
+				{
+				collapsed 1
+				}
+			}''', file=pz2)
+
+            if actor in penis:
+                if 'Scale' in penis[actor]:
+                    print('		scale scale\n			{', file=pz2)
+                    tweak_parm(penis[actor]['Scale'], SCALE_MULTIPLIER)
+                    print('			}', file=pz2)
+
+                for xyz in ['x', 'y', 'z']:
+                    if actor in penis and (xyz + 'Scale') in penis[actor]:
+                        print('		scale' + xyz.upper() + ' ' + xyz + 'Scale\n			{', file=pz2)
+                        tweak_parm(penis[actor][xyz + 'Scale'], SCALE_MULTIPLIER)
+                        print('			}', file=pz2)
+
+                if 'Bend' in penis[actor]:
+                    print('		rotateX xrot\n			{', file=pz2)
+                    tweak_parm(penis[actor]['Bend'])
+                    print('			}', file=pz2)
+
+            end_actor()
 
         # penis thighs
         if not for_ds:
+            print('\n', file=pz2)
             for leg_side in ['r', 'l']:
                 print('''
 actor ''' + leg_side + '''Thigh:1
@@ -1140,6 +1241,7 @@ actor ''' + leg_side + '''Thigh:1
 		}
 	}''', file=pz2)
 
+        figure_settings(penis)
         print('}', file=pz2)
         pz2.close()
 
@@ -1334,6 +1436,28 @@ def hide_morph(morph_name: str) -> None:
 			{
 			hidden 1
 			}''', file=pz2)
+
+
+def end_actor():
+    global pz2
+    print('		}\n	}', file=pz2)
+
+
+def figure_settings(settings: Dict[str, Any]):
+    global pz2
+
+    print('''\n\n
+figure
+	{''', file=pz2)
+
+    if 'Subdivision' in settings:
+        print('	subdivLevels 0', file=pz2)
+        print('	subdivRenderLevels ' + settings['Subdivision'], file=pz2)
+
+    # skinning method
+    print('	skinType 3', file=pz2)  # Poser Unimesh
+
+    print('	}', file=pz2)
 
 
 if __name__ == '__main__':

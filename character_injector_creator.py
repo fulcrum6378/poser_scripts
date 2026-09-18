@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import Any, Dict, Iterable, List, Optional
 
 SCALE_MULTIPLIER = 0.01
@@ -12,7 +13,7 @@ def create_injector(
         character_version: str,
         for_ds: bool,
 ) -> None:
-    global dossier, pz2, figure_type
+    global dossier, pz2, figure_type, figure_type_abbr
 
     # determine the libraries
     source_library: Optional[str] = None
@@ -60,24 +61,27 @@ if figure.Name() != '{character_name.upper()}':
         print("\n    body = figure.Actor('BODY')", file=py3)
 
     # custom body parameters and full body morphs
+    special_morph_injectors = []
     if 'Special' in dossier['Body']:
         for parm in dossier['Body']['Special'].values():
-            if 'IsMorphTarget' not in parm:
+            if 'MorphTarget' not in parm:
                 print(f"    body.CreateValueParameter('{parm['Name']}')", file=py3)
             else:
-                morph_target_path = os.path.join(
-                    os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name,
-                    'Sculpture on ' + figure_type_abbr, parm['Name'] + '.obj')
-                print(f"    figure.LoadFullBodyMorph(\n        r'{morph_target_path}')", file=py3)
+                morph_obj = morph_target_path(character_name, parm['Name'], 'obj')
+                morph_pz2 = morph_target_path(character_name, parm['Name'], 'pz2')
+                if os.path.isfile(morph_obj):
+                    print(f"    figure.LoadFullBodyMorph(\n        r'{morph_obj}')", file=py3)
+                elif os.path.isfile(morph_pz2):
+                    special_morph_injectors.append(morph_pz2)
+                else:
+                    raise Exception(f'Morph file not found either in OBJ or PZ2: {morph_obj}')
 
     # custom chest morphs
     if 'Chest' in dossier and 'Special' in dossier['Chest']:
         print(f"\n    chest = figure.Actor('chest')", file=py3)
         for morph in dossier['Chest']['Special'].values():
-            morph_target_path = os.path.join(
-                os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name,
-                'Sculpture on ' + figure_type_abbr, morph['Name'] + '.obj')
-            print(f"    figure.LoadFullBodyMorph(\n        r'{morph_target_path}')", file=py3)
+            morph_obj = morph_target_path(character_name, morph['Name'], 'obj')
+            print(f"    figure.LoadFullBodyMorph(\n        r'{morph_obj}')", file=py3)
             print(f"    body.DeleteTarget(\n        r'{morph['Name']}')", file=py3)
 
     # end writing python
@@ -89,7 +93,8 @@ else:
     # -------------------------POSER SCRIPT-------------------------
 
     # determine the path of PZ2
-    pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', '!Characters')
+    pz2_dir_name = '!Characters'
+    pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', pz2_dir_name)
     if not os.path.isdir(pz2_dir):
         os.makedirs(pz2_dir)
     pz2 = open(
@@ -100,7 +105,19 @@ else:
     print('{\n\nversion\n	{\n	number 14\n	}\n', file=pz2)
 
     # primary Python script
-    print('runPythonScript "Runtime:Python:poserScripts:Characters:' + py3_name + '"\n', file=pz2)
+    print('runPythonScript "Runtime:Python:poserScripts:Characters:' + py3_name + '"', file=pz2)
+
+    # special morph injectors
+    for morph_pz2_src in special_morph_injectors:
+        morph_pmd_src = morph_pz2_src[:-3] + 'pmd'
+        morph_pz2 = os.path.join(pz2_dir, os.path.basename(morph_pz2_src))
+        morph_pmd = os.path.join(pz2_dir, os.path.basename(morph_pmd_src))
+        shutil.copy2(morph_pz2_src, morph_pz2)
+        if os.path.isfile(morph_pmd_src):
+            shutil.copy2(morph_pmd_src, morph_pmd)
+        print(f'readScript {os.path.basename(morph_pz2)}', file=pz2)
+
+    print('', file=pz2)
 
     morphs: Dict[str, Dict[str, Any]] = {
         'BODY': {},
@@ -111,8 +128,11 @@ else:
         'head': {},
     }
     hide_morphs: Dict[str, List[str]] = {
+        'chest': [],
         'neck': [],
         'head': [],
+        'rCollar': [],
+        'lCollar': [],
     }
 
     # V4/M4 Base Morphs
@@ -127,16 +147,29 @@ else:
 
     # ----------------------V4/M4 Body Morphs++---------------------
 
+    is_always_thin = False
+    is_never_muscular = figure_type == 'Victoria 4'
+    if 'Body' in dossier and 'Morphs++' in dossier['Body'] and \
+            'Full Body' in dossier['Body']['Morphs++']:
+        fbms = dossier['Body']['Morphs++']['Full Body'].keys()
+        is_always_thin = 'Thin' in fbms and 'BodyBuilder' not in fbms
+        is_never_muscular = 'BodyBuilder' not in fbms
+
     dynamic_pbms: Iterable[str] = {
-        'BicepsFlex', 'CalvesFlex', 'FeetForShoe', 'GluteFlexL', 'GluteFlexR', 'Inhale', 'ToeBigCurl',
-        'ToeBigSide-Side', 'ToeBigUp-Down', 'ToesPointed', 'ToesSmallIn', 'ToesSmallUp-Down'}
+        'BicepsFlex', 'FeetForShoe', 'Inhale', 'ToeBigCurl', 'ToeBigSide-Side', 'ToeBigUp-Down',
+        'ToesPointed', 'ToesSmallIn', 'ToesSmallUp-Down'}
+    if not is_never_muscular:
+        dynamic_pbms.update(['CalvesFlex', 'GluteFlexL', 'GluteFlexR'])
     if figure_type == 'Victoria 4':
         dynamic_pbms.update([
-            'BreastDownL', 'BreastDownR', 'BreastInL', 'BreastInR', 'BreastOutL', 'BreastOutR',
-            'BreastUpL', 'BreastUpR', 'BreastsCleavage', 'BreastsDiameter', 'BreastsDroop',
-            'BreastsFlatten', 'BreastsHangForward', 'BreastsNatural', 'BreastsPerk', 'NailsLength',
-            'StomachDepth'
+            'BreastsDiameter', 'NailsLength', 'NipplesBig', 'NipplesDepth', 'StomachDepth'
         ])
+        if not is_always_thin:
+            dynamic_pbms.update([
+                'BreastDownL', 'BreastDownR', 'BreastInL', 'BreastInR', 'BreastOutL', 'BreastOutR',
+                'BreastUpL', 'BreastUpR', 'BreastsCleavage', 'BreastsDroop', 'BreastsFlatten',
+                'BreastsHangForward', 'BreastsNatural', 'BreastsPerk',
+            ])
 
     static_pbms: List[str] = []
     contextual_pbms: List[str] = []
@@ -179,6 +212,8 @@ else:
 
     # ----------------------V4/M4 Head Morphs++---------------------
 
+    dynamic_phms: Iterable[str] = {'EyesPupilDialate'}
+
     if 'Head' in dossier and 'Morphs++' in dossier['Head']:
 
         static_phms: List[str] = []
@@ -192,6 +227,9 @@ else:
                     static_phms.append(phm)
                 morphs['head']['PHM' + phm] = phm_node
 
+                if phm in dynamic_phms:
+                    dynamic_phms.remove(phm)
+
         if len(static_phms) != 0:
             print('\n// V4 Partial Head Morphs++ (static)', file=pz2)
             static_phms.sort()
@@ -203,6 +241,12 @@ else:
             contextual_phms.sort()
             for phm in contextual_phms:
                 inj_deltas('Morphs++', 'PHM', phm)
+
+    dynamic_phms = sorted(list(dynamic_phms))
+    if len(dynamic_phms) != 0:
+        print(f'\n// {figure_type_abbr} Partial Head Morphs++ (dynamic)', file=pz2)
+        for phm in dynamic_phms:
+            inj_deltas('Morphs++', 'PHM', phm)
 
     # V4/M4 Control Morphs++
     print(f'\n// {figure_type_abbr} Control Morphs++', file=pz2)
@@ -314,8 +358,8 @@ actor BODY:1
     for parm in dossier['Body']['Special'].values():
         special_parm(parm)
 
-        if 'Actors' in parm:
-            for actor in parm['Actors'].split(','):
+        if 'MorphTarget' in parm:
+            for actor in parm['MorphTarget'].split(','):
                 hide_morphs[actor.strip()].append(parm['Name'])
 
     # write DAZ body parameters
@@ -361,11 +405,13 @@ actor BODY:1
 actor hip:1
 	{
 	channels
-		{
-		groups
-			{''', file=pz2)
-    if 'Hip' in dossier and 'Scale' in dossier['Hip']:
-        print('''			groupNode General
+		{''', file=pz2)
+    if ('Hip' not in dossier or 'Scale' not in dossier['Hip']) or not is_never_muscular or \
+            'PubicDepth' in s4_contextual_morphs or \
+            ('Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle']):
+        print('		groups\n			{', file=pz2)
+        if 'Hip' not in dossier or 'Scale' not in dossier['Hip']:
+            print('''			groupNode General
 				{
 				groupNode Transforms
 					{
@@ -375,25 +421,29 @@ actor hip:1
 						}
 					}
 				}''', file=pz2)
-    print('''			groupNode Morphs | Shapes
+        if not is_never_muscular or \
+                'PubicDepth' in s4_contextual_morphs or \
+                ('Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle']):
+            if not is_never_muscular:
+                print('''			groupNode Morphs | Shapes
 				{
 				collapsed 0
 				groupNode Morphs++
 					{
 					collapsed 0
 					}''', file=pz2)
-    if 'PubicDepth' in s4_contextual_morphs:
-        print('''				groupNode Stephanie 4
+            if 'PubicDepth' in s4_contextual_morphs:
+                print('''				groupNode Stephanie 4
 					{
 					collapsed 0
 					}''', file=pz2)
-    if 'Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle']:
-        print('''				groupNode Muscle
+            if 'Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle']:
+                print('''				groupNode Muscle
 					{
 					collapsed 0
 					}''', file=pz2)
-    print('''				}
-			}''', file=pz2)
+            print('				}', file=pz2)
+        print('			}', file=pz2)
 
     # write DAZ hip parameters
     for morph_name, morph_values in morphs['hip'].items():
@@ -411,7 +461,7 @@ actor hip:1
 
         if 'Scale' in dossier['Hip']:
             print('		scale scale\n			{', file=pz2)
-            tweak_parm(dossier['Hip']['Scale'], SCALE_MULTIPLIER, True)
+            tweak_parm(dossier['Hip']['Scale'], SCALE_MULTIPLIER)
             print('			}', file=pz2)
 
     # end hip
@@ -457,7 +507,8 @@ actor abdomen:1
         # end abdomen
         print('		}\n	}', file=pz2)
 
-    if len(morphs['chest']) > 0 or (not for_ds and figure_type == 'Victoria 4') or 'Chest' in dossier:
+    if 'Chest' in dossier or len(hide_morphs['chest']) > 0 or len(morphs['chest']) > 0 or \
+            (not for_ds and figure_type == 'Victoria 4'):
 
         # begin chest
         print('''
@@ -485,6 +536,10 @@ actor chest:1
             print('				}', file=pz2)
         print('''			}''', file=pz2)
 
+        # hide sub-morphs
+        for morph_name in hide_morphs['chest']:
+            hide_morph(morph_name)
+
         # write custom chest morphs
         if 'Chest' in dossier and 'Special' in dossier['Chest']:
             for parm in dossier['Chest']['Special'].values():
@@ -508,21 +563,22 @@ actor chest:1
         # end chest
         print('		}\n	}', file=pz2)
 
-    if len(morphs['neck']) > 0 or 'Neck' in dossier:
+    if 'Neck' in dossier or len(hide_morphs['neck']) > 0 or len(morphs['neck']) > 0:
 
         # begin neck
-        print('''\nactor neck:1
-    	{
-    	channels
-    		{''', file=pz2)
+        print('''
+actor neck:1
+	{
+	channels
+		{''', file=pz2)
 
         # hide sub-morphs
         for morph_name in hide_morphs['neck']:
             hide_morph(morph_name)
 
-        if 'Neck' in dossier and 'Scale' in dossier['Neck']:
-            print('		scale scale\n			{', file=pz2)
-            tweak_parm(dossier['Neck']['Scale'], SCALE_MULTIPLIER, True)
+        if 'Neck' in dossier and 'yScale' in dossier['Neck']:
+            print('		scaleY yScale\n			{', file=pz2)
+            tweak_parm(dossier['Neck']['yScale'], SCALE_MULTIPLIER, unhide=True)
             print('			}', file=pz2)
 
         # end neck
@@ -564,109 +620,118 @@ actor head:1
         parm = head.Parameter(morph_name)
         print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
         print('			{', file=pz2)
-        tweak_parm(morph_values)
+        tweak_parm(morph_values, check_min=parm.MinValue())
         print('			}', file=pz2)
 
     if 'Scale' in dossier['Head']:
         print('		scale scale\n			{', file=pz2)
-        tweak_parm(dossier['Head']['Scale'], SCALE_MULTIPLIER, True)
+        tweak_parm(dossier['Head']['Scale'], SCALE_MULTIPLIER, unhide=True)
         print('			}', file=pz2)
 
     # end head
     print('		}\n	}', file=pz2)
 
     # eyes
-    if 'Eyes' in dossier:
-        for side in ['r', 'l']:
-            print('''\nactor ''' + side + '''Eye:1
+    if 'Eyes' in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
+        for eye_side in ['r', 'l']:
+            print('''\nactor ''' + eye_side + '''Eye:1
 	{
 	channels
 		{''', file=pz2)
 
-            if 'Scale' in dossier['Eyes'] or 'Scale' in dossier['Head']:
-                if 'Scale' in dossier['Head']:
-                    scale = dossier['Head']['Scale']
-                else:
-                    scale = dossier['Eyes']['Scale']
-
+            scale = None
+            if 'Eyes' in dossier and 'Scale' in dossier['Eyes']:
+                scale = dossier['Eyes']['Scale']
+            if 'Head' in dossier and 'Scale' in dossier['Head']:
+                scale = dossier['Head']['Scale']
+            if scale is not None:
                 print('		scale scale\n			{', file=pz2)
-                tweak_parm(scale, SCALE_MULTIPLIER, True)
+                tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
-            if 'yTranslate' in dossier['Eyes']:
-                print('		translateY ytran\n			{', file=pz2)
-                tweak_parm(dossier['Eyes']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
-                print('			}', file=pz2)
+            if 'Eyes' in dossier:
+                if 'xTranslate' in dossier['Eyes']:
+                    print('		translateX xtran\n			{', file=pz2)
+                    tweak_parm(dossier['Eyes']['xTranslate'], TRANSLATION_MULTIPLIER_HEAD,
+                               unhide=True, negate=eye_side == 'r')
+                    print('			}', file=pz2)
 
-            if 'zTranslate' in dossier['Eyes']:
-                print('		translateZ ztran\n			{', file=pz2)
-                tweak_parm(dossier['Eyes']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
-                print('			}', file=pz2)
+                if 'yTranslate' in dossier['Eyes']:
+                    print('		translateY ytran\n			{', file=pz2)
+                    tweak_parm(dossier['Eyes']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
+                    print('			}', file=pz2)
+
+                if 'zTranslate' in dossier['Eyes']:
+                    print('		translateZ ztran\n			{', file=pz2)
+                    tweak_parm(dossier['Eyes']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
+                    print('			}', file=pz2)
 
             print('''		}
 	}''', file=pz2)
 
     # upper jaw
-    if 'UpperJaw' in dossier:
+    if 'Upper Jaw' in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
         print('''\nactor upperJaw:1
 	{
 	channels
 		{''', file=pz2)
 
-        if 'Scale' in dossier['UpperJaw'] or 'Scale' in dossier['Head']:
-            if 'Scale' in dossier['Head']:
-                scale = dossier['Head']['Scale']
-            else:
-                scale = dossier['UpperJaw']['Scale']
-
+        scale = None
+        if 'Upper Jaw' in dossier and 'Scale' in dossier['Upper Jaw']:
+            scale = dossier['Upper Jaw']['Scale']
+        if 'Head' in dossier and 'Scale' in dossier['Head']:
+            scale = dossier['Head']['Scale']
+        if scale is not None:
             print('		scale scale\n			{', file=pz2)
-            tweak_parm(scale, SCALE_MULTIPLIER, True)
+            tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
             print('			}', file=pz2)
 
-        if 'yTranslate' in dossier['UpperJaw']:
-            print('		translateY ytran\n			{', file=pz2)
-            tweak_parm(dossier['UpperJaw']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
-            print('			}', file=pz2)
+        if 'Upper Jaw' in dossier:
+            if 'yTranslate' in dossier['Upper Jaw']:
+                print('		translateY ytran\n			{', file=pz2)
+                tweak_parm(dossier['Upper Jaw']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
+                print('			}', file=pz2)
 
-        if 'zTranslate' in dossier['UpperJaw']:
-            print('		translateZ ztran\n			{', file=pz2)
-            tweak_parm(dossier['UpperJaw']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
-            print('			}', file=pz2)
+            if 'zTranslate' in dossier['Upper Jaw']:
+                print('		translateZ ztran\n			{', file=pz2)
+                tweak_parm(dossier['Upper Jaw']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
+                print('			}', file=pz2)
 
         print('''		}
 	}''', file=pz2)
 
     # lower jaw
-    if 'LowerJaw' in dossier:
+    if 'Lower Jaw' in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
         print('''\nactor lowerJaw:1
 	{
 	channels
 		{''', file=pz2)
 
-        if 'Scale' in dossier['LowerJaw'] or 'Scale' in dossier['Head']:
-            if 'Scale' in dossier['Head']:
-                scale = dossier['Head']['Scale']
-            else:
-                scale = dossier['LowerJaw']['Scale']
-
+        scale = None
+        if 'Lower Jaw' in dossier and 'Scale' in dossier['Lower Jaw']:
+            scale = dossier['Lower Jaw']['Scale']
+        if 'Head' in dossier and 'Scale' in dossier['Head']:
+            scale = dossier['Head']['Scale']
+        if scale is not None:
             print('		scale scale\n			{', file=pz2)
-            tweak_parm(scale, SCALE_MULTIPLIER, True)
+            tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
             print('			}', file=pz2)
 
-        if 'yTranslate' in dossier['LowerJaw']:
-            print('		translateY ytran\n			{', file=pz2)
-            tweak_parm(dossier['LowerJaw']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
-            print('			}', file=pz2)
+        if 'Lower Jaw' in dossier:
+            if 'yTranslate' in dossier['Lower Jaw']:
+                print('		translateY ytran\n			{', file=pz2)
+                tweak_parm(dossier['Lower Jaw']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
+                print('			}', file=pz2)
 
-        if 'zTranslate' in dossier['LowerJaw']:
-            print('		translateZ ztran\n			{', file=pz2)
-            tweak_parm(dossier['LowerJaw']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, True)
-            print('			}', file=pz2)
+            if 'zTranslate' in dossier['Lower Jaw']:
+                print('		translateZ ztran\n			{', file=pz2)
+                tweak_parm(dossier['Lower Jaw']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
+                print('			}', file=pz2)
 
         print('''		}
 	}''', file=pz2)
 
-    if 'Tongue' in dossier:
+    if 'Tongue' in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
         print('\n', file=pz2)
         for actor in ['tongueBase', 'tongue01', 'tongue02', 'tongue03', 'tongue04', 'tongue05', 'tongueTip']:
             print('''\nactor ''' + actor + ''':1
@@ -674,14 +739,14 @@ actor head:1
 	channels
 		{''', file=pz2)
 
-            if 'Scale' in dossier['Tongue'] or 'Scale' in dossier['Head']:
-                if 'Scale' in dossier['Head']:
-                    scale = dossier['Head']['Scale']
-                else:
-                    scale = dossier['Tongue']['Scale']
-
+            scale = None
+            if 'Tongue' in dossier and 'Scale' in dossier['Tongue']:
+                scale = dossier['Tongue']['Scale']
+            if 'Head' in dossier and 'Scale' in dossier['Head']:
+                scale = dossier['Head']['Scale']
+            if scale is not None:
                 print('		scale scale\n			{', file=pz2)
-                tweak_parm(scale, SCALE_MULTIPLIER, True)
+                tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
             print('''		}
@@ -692,7 +757,7 @@ actor head:1
         print('\n', file=pz2)
 
         # collars
-        if 'Collars' in dossier:
+        if len(hide_morphs[arm_side + 'Collar']) > 0 or 'Collars' in dossier:
             print('''
 actor ''' + arm_side + '''Collar:1
 	{
@@ -713,9 +778,13 @@ actor ''' + arm_side + '''Collar:1
 				}''', file=pz2)
                 print('			}', file=pz2)
 
+            # hide sub-morphs
+            for morph_name in hide_morphs[arm_side + 'Collar']:
+                hide_morph(morph_name)
+
             if 'Collars' in dossier and 'Scale' in dossier['Shoulders']:
                 print('		scale scale\n			{', file=pz2)
-                tweak_parm(dossier['Collars']['Scale'], SCALE_MULTIPLIER, True)
+                tweak_parm(dossier['Collars']['Scale'], SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
             print('		}\n	}', file=pz2)
@@ -863,7 +932,9 @@ actor ''' + leg_side + '''Shin:1
 	channels
 		{''', file=pz2)
 
-            if not for_ds:
+            if not for_ds and \
+                    (('Shins' not in dossier or 'Scale' not in dossier['Shins']) or
+                     'CalvesFlex' in dynamic_pbms):
                 print('''		groups
 			{''', file=pz2)
                 if 'Shins' not in dossier or 'Scale' not in dossier['Shins']:
@@ -876,7 +947,7 @@ actor ''' + leg_side + '''Shin:1
 						collapsed 1
 						}
 					}
-				}''')
+				}''', file=pz2)
                 if 'CalvesFlex' in dynamic_pbms:
                     print('''			groupNode Morphs | Shapes
 				{
@@ -901,25 +972,23 @@ actor ''' + leg_side + '''Foot:1
 	{
 	channels
 		{''', file=pz2)
-            if not for_ds and 'Feet' in dossier and 'Scale' in dossier['Feet']:
+            if 'FeetForShoe' in dynamic_pbms:
                 print('''		groups
 			{''', file=pz2)
-                if 'Feet' in dossier and 'Scale' in dossier['Feet']:
-                    print('''			groupNode General
+                if 'FeetForShoe' in dynamic_pbms:
+                    print('''			groupNode Morphs | Shapes
 				{
-				groupNode Transforms
+				collapsed 0
+				groupNode Morphs++
 					{
-					groupNode Scale
-						{
-						collapsed 0
-						}
+					collapsed 0
 					}
 				}''', file=pz2)
                 print('			}', file=pz2)
 
             if 'Feet' in dossier and 'Scale' in dossier['Feet']:
                 print('		scale scale\n			{', file=pz2)
-                tweak_parm(dossier['Feet']['Scale'], SCALE_MULTIPLIER, True)
+                tweak_parm(dossier['Feet']['Scale'], SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
             print('		}\n	}', file=pz2)
@@ -931,28 +1000,8 @@ actor ''' + leg_side + '''Toe:1
 	channels
 		{''', file=pz2)
 
-            scale = None
-            if 'Feet' in dossier and 'Scale' in dossier['Feet']:
-                scale = dossier['Feet']['Scale']
-            if 'Toes' in dossier and 'Scale' in dossier['Toes']:
-                scale = dossier['Toes']['Scale']
-
             if not for_ds:
-                print('''		groups
-			{''', file=pz2)
-
-                if scale is not None:
-                    print('''			groupNode General
-				{
-				groupNode Transforms
-					{
-					groupNode Scale
-						{
-						collapsed 0
-						}
-					}
-				}''', file=pz2)
-
+                print('		groups\n			{', file=pz2)
                 print('''			groupNode Morphs | Shapes
 				{
 				collapsed 0
@@ -963,9 +1012,14 @@ actor ''' + leg_side + '''Toe:1
 				}''', file=pz2)
                 print('			}', file=pz2)
 
+            scale = None
+            if 'Feet' in dossier and 'Scale' in dossier['Feet']:
+                scale = dossier['Feet']['Scale']
+            if 'Toes' in dossier and 'Scale' in dossier['Toes']:
+                scale = dossier['Toes']['Scale']
             if scale is not None:
                 print('		scale scale\n			{', file=pz2)
-                tweak_parm(scale, SCALE_MULTIPLIER, True)
+                tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
             print('		}\n	}', file=pz2)
@@ -1001,23 +1055,30 @@ def rem_deltas(group: str, type: str, name: str) -> str:
           file=pz2)
 
 
+def morph_target_path(character_name: str, morph_name: str, ext: str) -> str:
+    global figure_type_abbr
+    return os.path.join(
+        os.environ['ONEDRIVE'], 'Projects', 'Characters', character_name,
+        'Sculpture on ' + figure_type_abbr, morph_name + '.' + ext)
+
+
 def special_parm(parm: Dict[str, Any]) -> None:
     global pz2, morphs
 
     parm_type = 'valueParm'
-    if 'IsMorphTarget' in parm:
+    if 'MorphTarget' in parm:
         parm_type = 'targetGeom'
 
     init_value = '0'
     if 'Default' in parm:
         init_value = parm['Default']
-    elif 'IsMorphTarget' in parm:
+    elif 'MorphTarget' in parm:
         init_value = '1'
 
     sensitivity = '0.004'
     if 'Sensitivity' in parm:
         sensitivity = parm['Sensitivity']
-    elif 'IsMorphTarget' in parm:
+    elif 'MorphTarget' in parm:
         sensitivity = '1'
 
     min_val, max_val = '0', '1'
@@ -1041,7 +1102,7 @@ def special_parm(parm: Dict[str, Any]) -> None:
         value_ops: Dict[str, str] = {}
         for dep_abbr, dep_value in parm['Dependencies'].items():
             value_ops[dossier['Body']['Special'][dep_abbr]['Name']] = dep_value
-        value_op_delta_add(value_ops, 1)
+        value_op_delta_add(value_ops, 1, False)
 
     print('			}', file=pz2)
 
@@ -1049,7 +1110,10 @@ def special_parm(parm: Dict[str, Any]) -> None:
 def tweak_parm(
         user_entry: Any,
         multiplier: float = 1,
-        unhide: bool = False
+        negate: bool = False,
+        unhide: bool = False,
+        check_min: Optional[float] = None,
+        check_max: Optional[float] = None,
 ) -> None:
     global dossier, pz2, dossier
 
@@ -1065,19 +1129,24 @@ def tweak_parm(
         value = user_entry
 
     if value is not None:
-        print('			initValue ' + poser_float(value, multiplier), file=pz2)
+        fl = float(value.strip()) * multiplier
+        if negate: fl = -fl
+        print('			initValue ' + poser_float(fl), file=pz2)
     if unhide: print('			hidden 0', file=pz2)
     if value is not None:
+        if check_min is not None and fl < check_min:
+            print('			min ' + poser_float(fl), file=pz2)
+        if check_max is not None and fl > check_max:
+            print('			max ' + poser_float(fl), file=pz2)
         print('''			keys
 				{
-				k  0  ''' + poser_float(value, multiplier) + '''
+				k  0  ''' + poser_float(fl) + '''
 				}''', file=pz2)
     if len(value_ops) != 0:
-        value_op_delta_add(value_ops, multiplier)
+        value_op_delta_add(value_ops, multiplier, negate)
 
 
-def poser_float(s: str, multiplier: float) -> str:
-    fl = float(s.strip()) * multiplier
+def poser_float(fl: float) -> str:
     if fl % 1 == 0:
         return str(fl).split('.')[0]
     else:
@@ -1089,17 +1158,23 @@ def poser_float(s: str, multiplier: float) -> str:
         return str(fl).rstrip('0').rstrip('.')
 
 
-def value_op_delta_add(value_ops: Dict[str, str], multiplier: float) -> None:
+def value_op_delta_add(
+        value_ops: Dict[str, str],
+        multiplier: float,
+        negate: bool,
+) -> None:
     for parm_name, parm_value in value_ops.items():
         print(f'''			valueOpDeltaAdd
 				Figure 1
 				BODY:1
 				{parm_name}
-				deltaAddDelta {value_op_number(parm_value, multiplier)}''', file=pz2)
+				deltaAddDelta {value_op_number(parm_value, multiplier, negate)}''', file=pz2)
 
 
-def value_op_number(s: str, multiplier: float) -> str:
-    return f'{s[-1] if s[-1] == "-" else ""}{poser_float(s.strip()[1:-2], multiplier)}'
+def value_op_number(s: str, multiplier: float, negate: bool) -> str:
+    fl = float(s.strip()[1:-2]) * multiplier
+    if negate: fl = -fl
+    return f'{s[-1] if s[-1] == "-" else ""}{poser_float(fl)}'
 
 
 def get_actor_name_by_morph_name(name: str) -> str:

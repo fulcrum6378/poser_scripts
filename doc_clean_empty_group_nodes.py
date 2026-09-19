@@ -1,8 +1,8 @@
 import os
-import sys
+from typing import List, Tuple
 
 
-def examine_group_nodes(min_: int, max_: int, indent: int) -> tuple[bool, int]:
+def examine_group_nodes(min_: int, max_: int, indent: int) -> Tuple[bool, int]:
     global pz
     indents = '	' * indent
     removed_chars = 0
@@ -10,7 +10,6 @@ def examine_group_nodes(min_: int, max_: int, indent: int) -> tuple[bool, int]:
 
     # loop on each group node
     while True:
-        # noinspection PyUnboundLocalVariable
         min__ = min_ if 'max_group' not in locals() else max_group
         min_group = pz.find('\n' + indents + '			groupNode ', min__, max_)
         if min_group == -1: break
@@ -48,31 +47,39 @@ def annihilate(start: int, end: int):
     pz = pz[:start] + pz[end:]
 
 
-request = sys.argv[1] if len(sys.argv) >= 2 else os.getcwd()
-pzs: list[str] = []
-if os.path.isfile(request):
-    pzs.append(request)
-elif os.path.isdir(request):
-    for dir_path, dir_names, filenames in os.walk(request):
-        for filename in filenames:
-            if '.' not in filename: continue
-            ext = filename.rsplit('.', 1)[1]
-            if ext in ['pz3', 'pz2', 'cr2', 'fc2', 'hr2', 'hd2', 'pp2']:
-                pzs.append(os.path.join(dir_path, filename))
+if poser.DialogSimple.YesNo('Select Yes for a single file\nNo for a directory') == 1:
+    file_chooser = poser.DialogFileChooser(
+        poser.kDialogFileChooserOpen, None, f'Select a Poser file for cleansing')
 else:
-    print('The address is not available.')
-    quit()
+    file_chooser = poser.DialogDirChooser(0, 'Select a library directory', None)
+continuum = file_chooser.Show()
 
-for pz_path in pzs:
-    if len(pzs) > 0:
-        print('Scanning', pz_path.replace(request, ''))
-    pz: str = open(pz_path, 'r').read()
-    removed = examine_group_nodes(0, len(pz), 0)[1]
-    if len(pzs) == 1:
-        print(f'{removed:,} characters removed.')
-    elif removed > 0:
+if continuum:
+    request = file_chooser.Path()
+    pzs: List[str] = []
+    if os.path.isfile(request):
+        pzs.append(request)
+    elif os.path.isdir(request):
+        for dir_path, dir_names, filenames in os.walk(request):
+            for filename in filenames:
+                if '.' not in filename: continue
+                ext = filename.rsplit('.', 1)[1]
+                if ext in ['pz3', 'pz2', 'cr2', 'fc2', 'hr2', 'hd2', 'pp2']:
+                    pzs.append(os.path.join(dir_path, filename))
+    else:
+        print('The address is not available.')
+        quit()
 
-        print(f'{pz_path.replace(request, "")}:  {removed:,} characters removed.')
-    if removed > 0:
-        os.rename(pz_path, pz_path + '.BAK')
-        open(pz_path, 'w', encoding='cp1252', newline='\n').write(pz)
+    for pz_path in pzs:
+        if len(pzs) > 0:
+            print('Scanning', pz_path.replace(request, ''))
+        pz = open(pz_path, 'r').read()
+        removed = examine_group_nodes(0, len(pz), 0)[1]
+        if len(pzs) == 1:
+            print(f'{removed:,} characters removed.')
+        elif removed > 0:
+
+            print(f'{pz_path.replace(request, "")}:  {removed:,} characters removed.')
+        if removed > 0:
+            os.rename(pz_path, pz_path + '.BAK')
+            open(pz_path, 'w', encoding='cp1252', newline='\n').write(pz)

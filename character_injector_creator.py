@@ -3,8 +3,10 @@ import shutil
 from typing import Any, Dict, Iterable, List, Optional
 
 POSER_VERSION = 14
+PZ2_DIR_NAME = 'Characters'
+
 SCALE_MULTIPLIER = 0.01
-TRANSLATION_MULTIPLIER_HIP = 0.0038149298209603575  # synchronised with Espinela's hip
+TRANSLATION_MULTIPLIER_HIP = 0.0038149298209603575
 TRANSLATION_MULTIPLIER_HEAD = 0.0038125
 
 
@@ -86,8 +88,7 @@ def create_injector(
     # -------------------------POSER SCRIPT-------------------------
 
     # determine the path of PZ2
-    pz2_dir_name = '!Characters'
-    pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', pz2_dir_name)
+    pz2_dir = os.path.join(target_library, 'Runtime', 'Libraries', 'Pose', PZ2_DIR_NAME)
     if not os.path.isdir(pz2_dir):
         os.makedirs(pz2_dir)
     pz2 = open(
@@ -314,8 +315,9 @@ def create_injector(
 actor BODY:1
 	{
 	channels
-		{
-		groups
+		{''', file=pz2)
+    if not for_ds:
+        print('''		groups
 			{
 			groupNode General
 				{
@@ -338,12 +340,12 @@ actor BODY:1
 					collapsed 0
 					}
 				}''', file=pz2)
-    if 'Special' in dossier['Body']:
-        print('			groupNode Special\n				{', file=pz2)
-        for parm in dossier['Body']['Special'].values():
-            print('				parmNode ' + parm['Name'], file=pz2)
-        print('				}', file=pz2)
-    print('			}', file=pz2)
+        if 'Special' in dossier['Body']:
+            print('			groupNode Special\n				{', file=pz2)
+            for parm in dossier['Body']['Special'].values():
+                print('				parmNode ' + parm['Name'], file=pz2)
+            print('				}', file=pz2)
+        print('			}', file=pz2)
 
     # write custom body parameters
     for parm in dossier['Body']['Special'].values():
@@ -397,9 +399,9 @@ actor hip:1
 	{
 	channels
 		{''', file=pz2)
-    if ('Hip' not in dossier or 'Scale' not in dossier['Hip']) or not is_never_muscular or \
-            'PubicDepth' in s4_contextual_morphs or \
-            ('Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle']):
+    if not for_ds and (('Hip' not in dossier or 'Scale' not in dossier['Hip']) or not is_never_muscular or
+            'PubicDepth' in s4_contextual_morphs or
+            ('Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle'])):
         print('		groups\n			{', file=pz2)
         if 'Hip' not in dossier or 'Scale' not in dossier['Hip']:
             print('''			groupNode General
@@ -463,8 +465,9 @@ actor hip:1
 actor abdomen:1
 	{
 	channels
-		{
-		groups
+		{''', file=pz2)
+        if not for_ds:
+            print('''		groups
 			{
 			groupNode General
 				{
@@ -575,8 +578,9 @@ actor neck:1
 actor head:1
 	{
 	channels
-		{
-		groups
+		{''', file=pz2)
+    if not for_ds:
+        print('''		groups
 			{
 			groupNode Morphs | Expressions
 				{
@@ -1156,7 +1160,6 @@ actor hip:1
                 print('			hidden 0', file=pz2)
             print('			}', file=pz2)
 
-
         for xyz in ['x', 'y', 'z']:
             if 'Hip' in penis and (xyz + 'Translate') in penis['Hip']:
                 print('		translate' + xyz.upper() + ' ' + xyz + 'tran\n			{', file=pz2)
@@ -1406,7 +1409,7 @@ def value_op_delta_add(
 
 def value_op_number(s: str, multiplier: float, negate: bool) -> str:
     ss = s.strip()
-    fl = float((ss[-1] if ss[-1] == '-' else '') +  ss[1:-2]) * multiplier
+    fl = float((ss[-1] if ss[-1] == '-' else '') + ss[1:-2]) * multiplier
     if negate: fl = -fl
     return poser_float(fl)
 

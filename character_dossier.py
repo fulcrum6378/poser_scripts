@@ -24,7 +24,7 @@ def load_dossier(
     dossier_path: Optional[str] = None
     if version is None:
         for dossier_file in os.listdir(dossier_dir).__reversed__():
-            if dossier_file.endswith('.yml'):
+            if dossier_file.endswith('.yml') and not dossier_file.endswith('-beta.yml'):
                 dossier_path = os.path.join(dossier_dir, dossier_file)
                 break
     else:

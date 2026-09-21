@@ -400,8 +400,8 @@ actor hip:1
 	channels
 		{''', file=pz2)
     if not for_ds and (('Hip' not in dossier or 'Scale' not in dossier['Hip']) or not is_never_muscular or
-            'PubicDepth' in s4_contextual_morphs or
-            ('Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle'])):
+                       'PubicDepth' in s4_contextual_morphs or
+                       ('Muscle' in dossier['Body'] and 'RectusFemorus' in dossier['Body']['Muscle'])):
         print('		groups\n			{', file=pz2)
         if 'Hip' not in dossier or 'Scale' not in dossier['Hip']:
             print('''			groupNode General

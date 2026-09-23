@@ -1,5 +1,7 @@
 import math
 import os
+import shutil
+
 import poser
 import subprocess
 from datetime import datetime
@@ -10,7 +12,9 @@ import quick_yaml
 DESKTOP = os.environ['USERPROFILE'] + '\\Desktop'
 RENDER_CACHE_1 = DESKTOP
 RENDER_CACHE_2 = '\\\\NERA\\Renders'
+EXR_STORAGE = r'R:\Fantasy Renders\EXR'
 POWERSHELL = r'C:\Program Files\PowerShell\7\pwsh.exe'
+DENOISE_SCRIPT = f'{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p11.py'
 
 scene_path: str = poser.Scene().DocumentPath()
 album_path: str = os.path.dirname(scene_path)
@@ -26,6 +30,11 @@ if not continuum:
     poser.DialogSimple.MessageBox('This document is not a Fantasy scene.')
 else:
     album_id, album_name = os.path.basename(album_path).split('. ')
+
+# determine the EXR storage directory
+if continuum:
+    if not os.path.isdir(EXR_STORAGE):
+        continuum = poser.DialogSimple.YesNo('EXR storage unavailable. Continue?')
 
 # determine the render cache directory
 if continuum:
@@ -55,7 +64,7 @@ if continuum:
     #
     # catalogue this render in the YML file of its album
     yml = os.path.join(album_path, album_name + '.yml')
-    exr_path = render_cache + '\\' + choice + '.exr'
+    exr_path = os.path.join(render_cache, choice + '.exr')
     if os.path.isfile(yml):
         render_name = list(quick_yaml.load(open(yml, 'r').read()).keys())[-1]
         render_id = int(render_name.split('. ')[0]) + 1
@@ -73,6 +82,21 @@ if continuum:
         f'  - {start_time.strftime(dt_format)} - [{math.trunc(start_time.timestamp())}]\n'
         f'  - {datetime.fromtimestamp(finish_time).strftime(dt_format)} - [{math.trunc(finish_time)}]\n')
 
+    # copy the EXR file
+    exr_copy_path = os.path.join(EXR_STORAGE, choice + ' - ' + export_name + '.exr')
+    if not os.path.isfile(exr_copy_path):
+        shutil.copy2(exr_path, exr_copy_path)
+
+    # let the EXR file be denoised
+    if not os.path.isdir(os.path.join(DESKTOP, choice + ' - ' + export_name)):
+        cmd = os.environ['LOCALAPPDATA'] + r'\Python\bin\python.exe ' + \
+              f"{DENOISE_SCRIPT} '" + exr_copy_path + "'"
+        subprocess.Popen(
+            f'start "" "{POWERSHELL}" -Command "{cmd}"',
+            shell=True,
+            cwd=DESKTOP,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS)
+
     # archive the scene
     if poser.DialogSimple.YesNo('Archive the scene?') == 1:
         archive_dir = os.path.join(album_path, 'Archive')
@@ -84,6 +108,9 @@ if continuum:
         pmd_path = scene_path.replace('.pz3', '.pmd')
         if os.path.isfile(pmd_path):
             command.append(os.path.basename(pmd_path))
+        lod_path = scene_path.replace('.pz3', '.txt')
+        if os.path.isfile(lod_path):
+            command.append(os.path.basename(lod_path))
         subprocess.run(command, cwd=album_path)
 
     # extract poses

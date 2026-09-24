@@ -199,7 +199,7 @@ def inject_material(
     # SSS radii
     sss_radii = None
     if 'ScatterRadius' in shader:
-        if shader_name == 'Eyes' and mat_name != '5_Sclera':
+        if (shader_name == 'Eyes' and mat_name != '5_Sclera') or shader_name == 'Lacrimal':
             pass
         else:
             sss_radii = get_value_for_mat(shader['ScatterRadius'], mat_name, chosen_mode, None)
@@ -420,7 +420,7 @@ def inject_material(
                 color_bsdf.SetLocation(node_column_3_x, node_column_3_y)
                 color_bsdf.InputByInternalName('Color').SetColor(*color)
                 color_bsdf.OutputByInternalName('BSDF').ConnectToInput(clo1.InputByInternalName('Closure1'))
-                node_column_3_y += 150
+                node_column_3_y += 110
 
             else:
                 color_bsdf = tree.CreateNode('ccl_SubsurfaceScattering')

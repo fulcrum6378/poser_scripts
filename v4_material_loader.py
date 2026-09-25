@@ -193,8 +193,15 @@ def inject_material(
 
     # bump texture
     bump_texture: Optional[str] = None
+    bump_map_is_color_texture, bump_map_from_color_texture = False, False
     if 'BumpTexture' in shader:
         bump_texture = get_value_for_mat(shader['BumpTexture'], mat_name, chosen_mode, None)
+    elif 'BumpMapIsColorTexture' in shader:
+        bump_map_is_color_texture = \
+            get_value_for_mat(shader['BumpMapIsColorTexture'], mat_name, chosen_mode, bump) == 'true'
+    elif 'BumpMapFromColorTexture' in shader:
+        bump_map_from_color_texture = \
+            get_value_for_mat(shader['BumpMapFromColorTexture'], mat_name, chosen_mode, bump) == 'true'
 
     # SSS radii
     sss_radii = None
@@ -354,7 +361,7 @@ def inject_material(
             dif_map_out.ConnectToInput(phs.InputByInternalName('Color'))
             if emiss != (0, 0, 0):
                 dif_map_out.ConnectToInput(phs.InputByInternalName('Emission'))
-        if 'BumpMapIsColorTexture' in shader:
+        if bump_map_is_color_texture:
             dif_map_out.ConnectToInput(phs.InputByInternalName('Bump'))
         dif_map.SetInputsCollapsed(True)
         dif_map.SetPreviewVisible(True)
@@ -382,7 +389,7 @@ def inject_material(
         bmp_map.SetPreviewVisible(True)
         node_column_2_y += 255
 
-    elif 'BumpMapFromColorTexture' in shader:
+    elif bump_map_from_color_texture:
 
         desaturator = tree.CreateNode('hsv2')
         desaturator.SetName('Desaturator')

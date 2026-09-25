@@ -589,6 +589,10 @@ actor head:1
 					{
 					collapsed 0
 					}
+				groupNode Visemes
+					{
+					collapsed 0
+					}
 				}
 			groupNode Morphforms
 				{
@@ -736,6 +740,11 @@ actor head:1
             if scale is not None:
                 print('		scale scale\n			{', file=pz2)
                 tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
+                print('			}', file=pz2)
+
+            if 'Tongue' in dossier and 'zScale' in dossier['Tongue']:
+                print('		scaleZ zScale\n			{', file=pz2)
+                tweak_parm(dossier['Tongue']['zScale'], SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
             print('''		}

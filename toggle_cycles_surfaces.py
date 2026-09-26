@@ -2,6 +2,9 @@ import poser
 
 scene = poser.Scene()
 figure = scene.CurrentFigure()
+actor = scene.CurrentActor()
+if figure is None or (actor.IsProp() and act.Parent().Name() == 'UNIVERSE'):
+    figure = actor
 
 turn_cycles_on = None
 for material in figure.Materials():

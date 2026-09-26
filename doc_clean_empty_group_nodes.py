@@ -1,5 +1,8 @@
+import gzip
 import os
 from typing import List, Tuple
+
+from doc_compressor import choose_poser_docs, POSER_EXTENSIONS
 
 
 def examine_group_nodes(min_: int, max_: int, indent: int) -> Tuple[bool, int]:
@@ -47,39 +50,34 @@ def annihilate(start: int, end: int):
     pz = pz[:start] + pz[end:]
 
 
-if poser.DialogSimple.YesNo('Select Yes for a single file\nNo for a directory') == 1:
-    file_chooser = poser.DialogFileChooser(
-        poser.kDialogFileChooserOpen, None, f'Select a Poser file for cleansing')
-else:
-    file_chooser = poser.DialogDirChooser(0, 'Select a library directory', None)
-continuum = file_chooser.Show()
+allowed_extensions: List[str] = []
+allowed_extensions.extend(list(POSER_EXTENSIONS.keys()))
+poser_compressed_extensions = list(POSER_EXTENSIONS.values())
+allowed_extensions.extend(poser_compressed_extensions)
+pzs: List[str] = choose_poser_docs(allowed_extensions)
+for pz_path in pzs:
+    if len(pzs) > 1:
+        print('Scanning', pz_path.replace(request, ''))
 
-if continuum:
-    request = file_chooser.Path()
-    pzs: List[str] = []
-    if os.path.isfile(request):
-        pzs.append(request)
-    elif os.path.isdir(request):
-        for dir_path, dir_names, filenames in os.walk(request):
-            for filename in filenames:
-                if '.' not in filename: continue
-                ext = filename.rsplit('.', 1)[1]
-                if ext in ['pz3', 'pz2', 'cr2', 'fc2', 'hr2', 'hd2', 'pp2']:
-                    pzs.append(os.path.join(dir_path, filename))
-    else:
-        print('The address is not available.')
-        quit()
-
-    for pz_path in pzs:
-        if len(pzs) > 0:
-            print('Scanning', pz_path.replace(request, ''))
+    # open and read the file
+    ext = os.path.splitext(pz_path)
+    compressed = ext in poser_compressed_extensions
+    if not compressed:
         pz = open(pz_path, 'r').read()
-        removed = examine_group_nodes(0, len(pz), 0)[1]
-        if len(pzs) == 1:
-            print(f'{removed:,} characters removed.')
-        elif removed > 0:
+    else:
+        pz = gzip.open(pz3_path, 'rb').read().decode()
 
-            print(f'{pz_path.replace(request, "")}:  {removed:,} characters removed.')
-        if removed > 0:
-            os.rename(pz_path, pz_path + '.BAK')
+    # do the main work
+    removed = examine_group_nodes(0, len(pz), 0)[1]
+    if len(pzs) == 1:
+        print(f'{removed:,} characters removed.')
+    elif removed > 0:
+        print(f'{pz_path.replace(request, "")}:  {removed:,} characters removed.')
+
+    # save the file if changed
+    if removed > 0:
+        os.rename(pz_path, pz_path + '.BAK')
+        if not compressed:
             open(pz_path, 'w', encoding='cp1252', newline='\n').write(pz)
+        else:
+            gzip.open(pz_path, 'wb').write(pz.encode())

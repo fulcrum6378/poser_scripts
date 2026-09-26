@@ -3,17 +3,42 @@ import poser
 import shutil
 
 from doc_collect_required_content import collect_pz3_required_paths, copy_to
-from fantasy_extract_poses_pz3 import CHARACTERS
+
+SCENES = '\\\\NERA\\Scenes\\'
+CONTENT = '\\\\NERA\\Content\\'
 
 scene = poser.Scene()
+doc_path = scene.DocumentPath()
 errors = ''
+
+# detect errors in figures
 for figure in scene.Figures():
-    if figure.Name() not in CHARACTERS: continue
+
+    # detect if any secondary CyclesSurfaces are disabled
     for material in figure.Materials():
         for node in material.ShaderTree().Nodes():
             if node.Type() == 'CyclesSurface' and material.ShaderTree() \
                     .RendererRootNode(poser.kRenderEngineCodeSUPERFLY).Name() != node.Name():
                 errors += f'CyclesSurface in {figure.Name().capitalize()}\'s {material.Name()} is disabled!\n'
+
+    # detect if any V4/M4 eyebrows are visible which shouldn't
+    try:
+        eyebrows = figure.Actor('eyeBrow')
+        if eyebrows.Visible() == 1:
+            errors += f'{figure.Name().capitalize()}\'s eyebrows are visible!\n'
+    except poser.error:
+        pass
+
+# detect errors in lights
+for light in scene.Lights():
+
+    # detect if any preview lights are not disabled (Poser 11 renders preview lights)
+    if light.LightPreview() == 1 and light.LightOn() == 1:
+        errors += f'Preview light {light.Name()} is on!\n'
+
+    # detect if any lights have disabled shadows
+    if light.LightOn() == 1 and light.Shadow() == 0:
+        errors += f'Light {light.Name()} has disabled shadows!\n'
 
 continuum = len(errors) == 0
 if not continuum:
@@ -54,8 +79,7 @@ if continuum:
         return shader_tree
 
 
-    pz3_path = scene.DocumentPath()
-    pz3 = open(pz3_path, 'r', encoding='cp1252').read()
+    pz3 = open(doc_path, 'r', encoding='cp1252').read()
     cur = 0
 
     # delete unnecessary actors
@@ -105,30 +129,29 @@ if continuum:
     pz3 = pz3[:cur] + '		advancedSamplingControls 0\n' + pz3[cur:]
 
     # check if the destination directory exists
-    destination = '\\\\NERA\\Scenes\\'
     nera_offline = False
-    if not os.path.isdir(destination):
+    if not os.path.isdir(SCENES):
         if poser.DialogSimple.YesNo('Nera is unavailable. Save in Desktop?') == 1:
-            destination = os.environ['USERPROFILE'] + '\\Desktop\\'
+            SCENES = os.environ['USERPROFILE'] + '\\Desktop\\'
             nera_offline = True
         else:
             continuum = False
 
     # check if the file doesn't already exist
     if continuum:
-        destination += os.path.basename(pz3_path)
-        if os.path.isfile(destination):
+        SCENES += os.path.basename(pz3_path)
+        if os.path.isfile(SCENES):
             continuum = poser.DialogSimple.YesNo('The scene is already queued. Overwrite?')
 
     # write the files
     if continuum:
-        open(destination, 'w', encoding='cp1252').write(pz3)
+        open(SCENES, 'w', encoding='cp1252').write(pz3)
         pmd_path = pz3_path.replace('.pz3', '.pmd')
         if os.path.isfile(pmd_path):
-            shutil.copy2(pmd_path, destination.replace('.pz3', '.pmd'))
+            shutil.copy2(pmd_path, SCENES.replace('.pz3', '.pmd'))
 
         # write required content
         if not nera_offline:
-            copy_to('\\\\NERA\\Content\\', collect_pz3_required_paths(scene.DocumentPath())[0])
+            copy_to(CONTENT, collect_pz3_required_paths(doc_path)[0])
 
         poser.DialogSimple.MessageBox('Ready to render in Poser 11...')

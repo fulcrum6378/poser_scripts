@@ -8,6 +8,9 @@ class Target(Enum):
     Head = 3
     Top = 4
     Bottom = 5
+    Shoes = 6
+    Grandeur = 7
+    Penis = 8
 
 
 DOLLY_MULTIPLIER = 0.0038149298209603575
@@ -25,8 +28,7 @@ elif figure_obj == 'blMilMan_m4b.obj':
 else:
     raise Exception('Unsupported figure')
 
-target = poser.DialogSimple.AskMenu(
-    'Photoshoot', 'Select a target', tuple(Target._member_names_))
+target = poser.DialogSimple.AskMenu('Photoshoot', 'Select a target', tuple(Target._member_names_))
 continuum: bool = target is not None and len(target) > 0
 
 if continuum:
@@ -43,9 +45,8 @@ if continuum:
 
     cam.Parameter('focal').SetValue(50)
     cam.Parameter('hither').SetValue(0)
-    cam.Parameter('pitch').SetValue(0)
 
-    z, y, x = 0, 0, 0
+    z, y, x, pitch = 0, 0, 0, 0
     body_scale = figure.Actor('BODY').Parameter('scale').Value()
     hip_scale = figure.Actor('hip').Parameter('scale').Value()
     neck_scale = figure.Actor('neck').Parameter('yScale').Value()
@@ -56,14 +57,6 @@ if continuum:
     v4_based_ratio = figure_def_height / V4_HEIGHT
     relative_scale = body_scale * v4_based_ratio
 
-    z_body = 25 * relative_scale
-    z_hip = 50 * hip_scale
-    z_neck = 30 * neck_scale
-    z_head = 51.5 * head_scale  # NEVER CHANGE THIS, ACCURATE IN FACE AND HEAD
-    z_thigh = 90 * thigh_scale
-    z_shin = 90 * shin_scale
-    z_feet = 30 * feet_scale
-
     y_body = 40.55  # full body: 180.55
     y_hip = 17 * hip_scale
     y_neck = 9 * neck_scale
@@ -73,25 +66,52 @@ if continuum:
     y_feet = 10 * feet_scale
 
     if target == Target.Body.name:
+        z_body = 25 * relative_scale
+        z_hip = 50 * hip_scale
+        z_neck = 30 * neck_scale
+        z_head = 50 * head_scale
+        z_thigh = 90 * thigh_scale
+        z_shin = 90 * shin_scale
+        z_feet = 30 * feet_scale
+
         z = -205 + ((z_body + z_hip + z_neck + z_head + z_thigh + z_shin + z_feet) * relative_scale)
         y = (y_body + y_hip + y_neck + y_head + y_thigh + y_shin + y_feet) * relative_scale * 0.58
 
     elif target == Target.Face.name:
-        z = -283 + (z_head * relative_scale)
+        z = -283 + (51.5 * head_scale * relative_scale)
         y = (y_body + y_hip + y_neck + y_head + y_thigh + y_shin + y_feet) * relative_scale
 
     elif target == Target.Head.name:
-        z = -260 + (z_head * relative_scale)
+        z = -260 + (51.5 * head_scale * relative_scale)
         y = (y_body + y_hip + y_neck + y_head + y_thigh + y_shin + y_feet) * relative_scale
 
     elif target == Target.Top.name:
-        pass  # TODO
+        z = -375 + (140 * relative_scale) + (90 * hip_scale)
+        y = ((y_body * 0.14) + y_hip + y_thigh + y_shin + y_feet) * relative_scale
 
     elif target == Target.Bottom.name:
-        pass  # TODO
+        z = -280 + (190 * relative_scale) + \
+            (50 * hip_scale * thigh_scale * shin_scale * feet_scale * relative_scale)
+        y = (y_hip + y_thigh + y_shin + y_feet) * relative_scale * 0.45
 
-    x = body_scale * v4_based_ratio
+    elif target == Target.Shoes.name:
+        z = -285 + (65 * feet_scale * relative_scale)
+        y = y_feet * relative_scale * 1.2
+
+    elif target == Target.Grandeur.name:
+        z = -260 + (33 * head_scale * relative_scale)
+        y = ((y_body * 0.212) + y_hip + y_neck + y_head + y_thigh + y_shin + y_feet) * relative_scale
+        pitch = 23
+
+    elif target == Target.Penis.name:
+        z = -345 + (100 * relative_scale)
+        y = (y_hip + y_thigh + y_shin + y_feet) * relative_scale * 0.805
+        pitch = 25
+
+    if target != Target.Shoes.name:
+        x = body_scale * v4_based_ratio
 
     cam.Parameter('dollyZ').SetValue(z * DOLLY_MULTIPLIER)
     cam.Parameter('dollyY').SetValue(y * DOLLY_MULTIPLIER)
     cam.Parameter('dollyX').SetValue(x * DOLLY_MULTIPLIER)
+    cam.Parameter('pitch').SetValue(pitch)

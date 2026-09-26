@@ -3,12 +3,17 @@ from typing import Iterable, List
 
 POSER_EXTENSIONS = {
     'pz3': 'pzz',
-    'pz2': 'pzz',  # TODO
+    'pz2': 'p2z',
     'cr2': 'crz',
-    'fc2': 'fcz',
-    'hr2': 'hrz',
+    'cm2': 'cmz',
+    'lt2': 'ltz',
     'hd2': 'hdz',
+    'hr2': 'hrz',
     'pp2': 'ppz',
+    'mt5': 'mz5',
+    'fc2': 'fcz',
+    'mc6': 'mcz',
+    'mcl': 'mlz',
 }
 
 
@@ -17,7 +22,7 @@ def choose_poser_docs(allowed_extensions: Iterable[str]) -> List[str]:
         file_chooser = poser.DialogFileChooser(
             poser.kDialogFileChooserOpen, None, f'Select a Poser file')
     else:
-        file_chooser = poser.DialogDirChooser(0, 'Select a directory from the library', None)
+        file_chooser = poser.DialogDirChooser(0, 'Select a directory from the library', poser.Libraries()[0])
     continuum = file_chooser.Show()
 
     pzs: List[str] = []
@@ -30,7 +35,7 @@ def choose_poser_docs(allowed_extensions: Iterable[str]) -> List[str]:
             for dir_path, dir_names, filenames in os.walk(request):
                 for filename in filenames:
                     if '.' not in filename: continue
-                    ext = os.path.splitext(filename)
+                    ext = filename.rsplit('.', 1)[1]
                     if ext in allowed_extensions:
                         pz_path = os.path.join(dir_path, filename)
                         if os.path.isfile(pz_path):
@@ -42,9 +47,11 @@ def choose_poser_docs(allowed_extensions: Iterable[str]) -> List[str]:
 
 
 if __name__ == '__main__':
-    for pz_path in choose_poser_docs(list(POSER_EXTENSIONS.keys())):
-        pz = open(pz_path, 'r').read()
-        ext = os.path.splitext(pz_path)
-        dm = os.path.getmtime(pz_path)
-        gzip.open(pz_path, 'wb').write(pz.encode())
-        # TODO continue coding...
+    for uncompressed_path in choose_poser_docs(list(POSER_EXTENSIONS.keys())):
+        data = open(uncompressed_path, 'r').read()
+        path_no_ext, ext = uncompressed_path.rsplit('.', 1)
+        date_modified = os.path.getmtime(uncompressed_path)
+        compressed_path = path_no_ext + '.' + POSER_EXTENSIONS[ext]
+        gzip.open(compressed_path, 'wb').write(data.encode())
+        os.utime(compressed_path, (date_modified, date_modified))
+        os.remove(uncompressed_path)

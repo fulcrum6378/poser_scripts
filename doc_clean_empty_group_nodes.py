@@ -60,7 +60,7 @@ for pz_path in pzs:
         print('Scanning', pz_path.replace(request, ''))
 
     # open and read the file
-    ext = os.path.splitext(pz_path)
+    ext = pz_path.rsplit('.', 1)[1]
     compressed = ext in poser_compressed_extensions
     if not compressed:
         pz = open(pz_path, 'r').read()

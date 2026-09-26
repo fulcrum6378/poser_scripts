@@ -6,10 +6,16 @@ from typing import Dict, Set
 
 from doc_collect_required_content import collect_pz3_required_paths
 
+
+def get_runtime_relative_path(absolute_path: str) -> str:
+    return absolute_path[absolute_path.lower().index(r'\runtime\textures') + 17:]
+
+
 scene = poser.Scene()
 revert: bool = False
 rules_path = scene.DocumentPath()[:-4] + '.txt'
 rules: Dict[str, float] = {}
+repo = os.environ['USERPROFILE'] + '\\3D Objects\\Poser\\_Uncompressed Textures'
 continuum = True
 
 if scene.Changed() == 1 and not poser.DialogSimple.YesNo('Unsaved document. Continue?'):
@@ -66,9 +72,9 @@ if continuum:
         for compress_dir in compress_dirs:
 
             # prepare directories
-            original_dir = compress_dir + ' (1.0)'
+            original_dir = repo + get_runtime_relative_path(compress_dir)
             if not os.path.isdir(original_dir):
-                os.rename(compress_dir, original_dir)
+                shutil.move(compress_dir, original_dir)
             if not os.path.isdir(compress_dir):
                 os.mkdir(compress_dir)
 
@@ -104,6 +110,12 @@ if continuum:
             f'{compressed_count} files were compressed.\n'
             f'{copied_count} files were merely copied.')
 
+        # clear Poser's texture cache
+        if compressed_count > 0:
+            cache_dir = os.path.join(poser.TempLocation(), 'PoserTextureCache')
+            for cache_file in os.listdir(cache_dir):
+                os.remove(os.path.join(cache_dir, cache_file))
+
     else:
         reverted_count = 0
 
@@ -114,10 +126,10 @@ if continuum:
 
         # revert changes
         for texture_dir in texture_dirs:
-            original_dir = texture_dir + ' (1.0)'
+            original_dir = repo + get_runtime_relative_path(texture_dir)
             if os.path.isdir(original_dir):
                 shutil.rmtree(texture_dir)
-                os.rename(original_dir, texture_dir)
+                shutil.move(original_dir, texture_dir)
                 reverted_count += 1
 
         # report

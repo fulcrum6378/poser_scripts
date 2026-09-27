@@ -139,14 +139,14 @@ if continuum:
 
     # check if the file doesn't already exist
     if continuum:
-        SCENES += os.path.basename(pz3_path)
+        SCENES += os.path.basename(doc_path)
         if os.path.isfile(SCENES):
             continuum = poser.DialogSimple.YesNo('The scene is already queued. Overwrite?')
 
     # write the files
     if continuum:
         open(SCENES, 'w', encoding='cp1252').write(pz3)
-        pmd_path = pz3_path.replace('.pz3', '.pmd')
+        pmd_path = doc_path.replace('.pz3', '.pmd')
         if os.path.isfile(pmd_path):
             shutil.copy2(pmd_path, SCENES.replace('.pz3', '.pmd'))
 

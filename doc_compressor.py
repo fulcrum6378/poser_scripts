@@ -52,6 +52,7 @@ def choose_poser_docs(allowed_extensions: Iterable[str]) \
 
 
 if __name__ == '__main__':
+    count = 0
     for uncompressed_path in choose_poser_docs(list(POSER_EXTENSIONS.keys()))[1]:
         data = open(uncompressed_path, 'r').read()
         path_no_ext, ext = uncompressed_path.rsplit('.', 1)
@@ -60,3 +61,6 @@ if __name__ == '__main__':
         gzip.open(compressed_path, 'wb').write(data.encode())
         os.utime(compressed_path, (date_modified, date_modified))
         os.remove(uncompressed_path)
+        count += 1
+    if count > 0:
+        print(f'{count} files were compressed.')

@@ -662,66 +662,41 @@ actor head:1
             print('''		}
 	}''', file=pz2)
 
-    # upper jaw
-    if 'Upper Jaw' in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
-        print('''\nactor upperJaw:1
+    # jaws
+    for jaw_side in ['upper', 'lower']:
+        jaw_name = jaw_side.capitalize() + ' Jaw'
+        if jaw_name in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
+            print('''\nactor ''' + jaw_side + '''Jaw:1
 	{
 	channels
 		{''', file=pz2)
 
-        scale = None
-        if 'Upper Jaw' in dossier and 'Scale' in dossier['Upper Jaw']:
-            scale = dossier['Upper Jaw']['Scale']
-        if 'Head' in dossier and 'Scale' in dossier['Head']:
-            scale = dossier['Head']['Scale']
-        if scale is not None:
-            print('		scale scale\n			{', file=pz2)
-            tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
-            print('			}', file=pz2)
-
-        if 'Upper Jaw' in dossier:
-            if 'yTranslate' in dossier['Upper Jaw']:
-                print('		translateY ytran\n			{', file=pz2)
-                tweak_parm(dossier['Upper Jaw']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
+            scale = None
+            if jaw_name in dossier and 'Scale' in dossier[jaw_name]:
+                scale = dossier[jaw_name]['Scale']
+            if 'Head' in dossier and 'Scale' in dossier['Head']:
+                scale = dossier['Head']['Scale']
+            if scale is not None:
+                print('		scale scale\n			{', file=pz2)
+                tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
-            if 'zTranslate' in dossier['Upper Jaw']:
-                print('		translateZ ztran\n			{', file=pz2)
-                tweak_parm(dossier['Upper Jaw']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
-                print('			}', file=pz2)
+            if jaw_name in dossier:
 
-        print('''		}
-	}''', file=pz2)
+                for xyz in ['x', 'y', 'z']:
+                    if (xyz + 'Scale') in dossier[jaw_name]:
+                        print('		scale' + xyz.upper() + ' ' + xyz + 'Scale\n			{', file=pz2)
+                        tweak_parm(dossier[jaw_name][xyz + 'Scale'], SCALE_MULTIPLIER, unhide=True)
+                        print('			}', file=pz2)
 
-    # lower jaw
-    if 'Lower Jaw' in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
-        print('''\nactor lowerJaw:1
-	{
-	channels
-		{''', file=pz2)
+                for xyz in ['x', 'y', 'z']:
+                    if (xyz + 'Translate') in dossier[jaw_name]:
+                        print('		translate' + xyz.upper() + ' ' + xyz + 'tran\n			{', file=pz2)
+                        tweak_parm(dossier[jaw_name][xyz + 'Translate'],
+                                   TRANSLATION_MULTIPLIER_HEAD, unhide=True)
+                        print('			}', file=pz2)
 
-        scale = None
-        if 'Lower Jaw' in dossier and 'Scale' in dossier['Lower Jaw']:
-            scale = dossier['Lower Jaw']['Scale']
-        if 'Head' in dossier and 'Scale' in dossier['Head']:
-            scale = dossier['Head']['Scale']
-        if scale is not None:
-            print('		scale scale\n			{', file=pz2)
-            tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
-            print('			}', file=pz2)
-
-        if 'Lower Jaw' in dossier:
-            if 'yTranslate' in dossier['Lower Jaw']:
-                print('		translateY ytran\n			{', file=pz2)
-                tweak_parm(dossier['Lower Jaw']['yTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
-                print('			}', file=pz2)
-
-            if 'zTranslate' in dossier['Lower Jaw']:
-                print('		translateZ ztran\n			{', file=pz2)
-                tweak_parm(dossier['Lower Jaw']['zTranslate'], TRANSLATION_MULTIPLIER_HEAD, unhide=True)
-                print('			}', file=pz2)
-
-        print('''		}
+            print('''		}
 	}''', file=pz2)
 
     if 'Tongue' in dossier or ('Head' in dossier and 'Scale' in dossier['Head']):
@@ -742,10 +717,12 @@ actor head:1
                 tweak_parm(scale, SCALE_MULTIPLIER, unhide=True)
                 print('			}', file=pz2)
 
-            if 'Tongue' in dossier and 'zScale' in dossier['Tongue']:
-                print('		scaleZ zScale\n			{', file=pz2)
-                tweak_parm(dossier['Tongue']['zScale'], SCALE_MULTIPLIER, unhide=True)
-                print('			}', file=pz2)
+            if 'Tongue' in dossier:
+                for xyz in ['x', 'y', 'z']:
+                    if (xyz + 'Scale') in dossier['Tongue']:
+                        print('		scale' + xyz.upper() + ' ' + xyz + 'Scale\n			{', file=pz2)
+                        tweak_parm(dossier['Tongue'][xyz + 'Scale'], SCALE_MULTIPLIER, unhide=True)
+                        print('			}', file=pz2)
 
             print('''		}
 	}''', file=pz2)

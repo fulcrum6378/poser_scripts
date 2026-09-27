@@ -1,5 +1,7 @@
-import os.path
-from typing import Iterable, List
+import gzip
+import os
+import poser
+from typing import Iterable, List, Optional, Tuple
 
 POSER_EXTENSIONS = {
     'pz3': 'pzz',
@@ -17,7 +19,9 @@ POSER_EXTENSIONS = {
 }
 
 
-def choose_poser_docs(allowed_extensions: Iterable[str]) -> List[str]:
+def choose_poser_docs(allowed_extensions: Iterable[str]) \
+        -> Tuple[Optional[str], List[str]]:
+
     if poser.DialogSimple.YesNo('Select Yes for a single file\nNo for a directory') == 1:
         file_chooser = poser.DialogFileChooser(
             poser.kDialogFileChooserOpen, None, f'Select a Poser file')
@@ -25,6 +29,7 @@ def choose_poser_docs(allowed_extensions: Iterable[str]) -> List[str]:
         file_chooser = poser.DialogDirChooser(0, 'Select a directory from the library', poser.Libraries()[0])
     continuum = file_chooser.Show()
 
+    request = None
     pzs: List[str] = []
     if continuum:
         request = file_chooser.Path()
@@ -43,11 +48,11 @@ def choose_poser_docs(allowed_extensions: Iterable[str]) -> List[str]:
         else:
             print('The address is not available.')
             quit()
-    return pzs
+    return request, pzs
 
 
 if __name__ == '__main__':
-    for uncompressed_path in choose_poser_docs(list(POSER_EXTENSIONS.keys())):
+    for uncompressed_path in choose_poser_docs(list(POSER_EXTENSIONS.keys()))[1]:
         data = open(uncompressed_path, 'r').read()
         path_no_ext, ext = uncompressed_path.rsplit('.', 1)
         date_modified = os.path.getmtime(uncompressed_path)

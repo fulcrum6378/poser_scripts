@@ -54,7 +54,7 @@ allowed_extensions: List[str] = []
 allowed_extensions.extend(list(POSER_EXTENSIONS.keys()))
 poser_compressed_extensions = list(POSER_EXTENSIONS.values())
 allowed_extensions.extend(poser_compressed_extensions)
-pzs: List[str] = choose_poser_docs(allowed_extensions)
+request, pzs = choose_poser_docs(allowed_extensions)
 for pz_path in pzs:
     if len(pzs) > 1:
         print('Scanning', pz_path.replace(request, ''))
@@ -65,7 +65,7 @@ for pz_path in pzs:
     if not compressed:
         pz = open(pz_path, 'r').read()
     else:
-        pz = gzip.open(pz3_path, 'rb').read().decode()
+        pz = gzip.open(pz_path, 'rb').read().decode()
 
     # do the main work
     removed = examine_group_nodes(0, len(pz), 0)[1]

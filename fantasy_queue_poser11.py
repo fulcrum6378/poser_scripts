@@ -94,9 +94,18 @@ if continuum:
         'AtmosphereMaterialActor', 'Atmosphere'
     )
 
-    # lower preview graphics to prevent out of memory errors
+    # modernise the background shader tree
+    bg_shader_tree = bg_shader_tree.replace(  # Mapping:Vector Type => Texture
+        'name "Vector Type"\n					value 4 0 0',
+        'name "Vector Type"\n					value 3 0 0',
+    )
+
     cur = pz3.rindex('\n\ndoc\n	{\n')
+
+    # lower preview graphics to prevent out of memory errors
     replace_parameter('displayMode', 'EDGESONLY')
+
+    # delete unnecessary actors
     cur = pz3.index('	addActor BackgroundMaterialActor', cur)
     pz3 = pz3[:cur] + pz3[cur + 34:]
     cur = pz3.index('	addActor AtmosphereMaterialActor', cur)

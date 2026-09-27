@@ -12,15 +12,17 @@ import quick_yaml
 DESKTOP = os.environ['USERPROFILE'] + '\\Desktop'
 RENDER_CACHE_1 = DESKTOP
 RENDER_CACHE_2 = '\\\\NERA\\Renders'
+DENOISE_SCRIPT_1 = f'{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p14.py'
+DENOISE_SCRIPT_2 = f'{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p11.py'
 EXR_STORAGE = r'R:\Fantasy Renders\EXR'
 POWERSHELL = r'C:\Program Files\PowerShell\7\pwsh.exe'
-DENOISE_SCRIPT = f'{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p11.py'
 
 scene_path: str = poser.Scene().DocumentPath()
 album_path: str = os.path.dirname(scene_path)
 if os.path.basename(album_path) == 'Templates':
     album_path = os.path.dirname(album_path)
 render_cache = RENDER_CACHE_2
+denoise_script = DENOISE_SCRIPT_2
 continuum: bool = os.path.basename(album_path)[2:4] == '. '
 
 # check if this is a Fantasy scene first
@@ -30,11 +32,6 @@ if not continuum:
     poser.DialogSimple.MessageBox('This document is not a Fantasy scene.')
 else:
     album_id, album_name = os.path.basename(album_path).split('. ')
-
-# determine the EXR storage directory
-if continuum:
-    if not os.path.isdir(EXR_STORAGE):
-        continuum = poser.DialogSimple.YesNo('EXR storage unavailable. Continue?')
 
 # determine the render cache directory
 if continuum:
@@ -46,9 +43,15 @@ if continuum:
     if have_laptop_render:
         if poser.DialogSimple.YesNo('Is it rendered in this device?') == 1:
             render_cache = RENDER_CACHE_1
+            denoise_script = DENOISE_SCRIPT_1
     if not os.path.isdir(render_cache):
         poser.DialogSimple.MessageBox('Nera is unavailable.')
         continuum = False
+
+# determine the EXR storage directory
+if continuum:
+    if render_cache == RENDER_CACHE_2 and not os.path.isdir(EXR_STORAGE):
+        continuum = poser.DialogSimple.YesNo('EXR storage unavailable. Continue?')
 
 # let the user choose a render from the render cache
 renders: List[str]
@@ -83,14 +86,17 @@ if continuum:
         f'  - {datetime.fromtimestamp(finish_time).strftime(dt_format)} - [{math.trunc(finish_time)}]\n')
 
     # copy the EXR file
-    exr_copy_path = os.path.join(EXR_STORAGE, choice + ' - ' + export_name + '.exr')
-    if not os.path.isfile(exr_copy_path):
-        shutil.copy2(exr_path, exr_copy_path)
+    if render_cache == RENDER_CACHE_2:
+        exr_to_be_denoised = os.path.join(EXR_STORAGE, choice + ' - ' + export_name + '.exr')
+        if not os.path.isfile(exr_to_be_denoised):
+            shutil.copy2(exr_path, exr_to_be_denoised)
+    else:
+        exr_to_be_denoised = exr_path
 
     # let the EXR file be denoised
     if not os.path.isdir(os.path.join(DESKTOP, choice + ' - ' + export_name)):
         cmd = os.environ['LOCALAPPDATA'] + r'\Python\bin\python.exe ' + \
-              f"{DENOISE_SCRIPT} '" + exr_copy_path + "'"
+              f"{denoise_script} '" + exr_to_be_denoised + "'"
         subprocess.Popen(
             f'start "" "{POWERSHELL}" -Command "{cmd}"',
             shell=True,

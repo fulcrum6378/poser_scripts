@@ -257,7 +257,7 @@ def create_injector(
             inj_deltas('Elite', morph_type, morph_name)
             morphs['BODY'][morph_type + morph_name] = morph_values
 
-    # V4/M4 Stephanie Morphs
+    # Stephanie 4 Morphs
     s4_static_morphs: List[str] = []
     s4_contextual_morphs: List[str] = []
     if figure_type == 'Victoria 4':
@@ -298,7 +298,19 @@ def create_injector(
         for morph_name, morph_values in dossier['Body']['Muscle'].items():
             morphs['BODY']['PBM' + morph_name] = morph_values
 
-    # 3rd party morphs
+    # Aiko 4 Body Morphs TODO
+
+    # Hiro 4 Head Morphs
+    if figure_type == 'Michael 4' and 'Head' in dossier and 'Hiro 4' in dossier['Head']:
+        print(f'\n// Hiro 4 Morphs', file=pz2)
+        is_h4_fhm = lambda morph_name: morph_name in ['American1', 'American2', 'HiroBase',
+                                                      'Realistic', 'Stylized1', 'Stylized2']
+        for morph_name, morph_values in sorted(list(dossier['Head']['Hiro 4'].items())):
+            inj_deltas('Hiro 4', 'FHMH4' if is_h4_fhm(morph_name) else 'PHMH4', morph_name)
+        for morph_name, morph_values in dossier['Head']['Hiro 4'].items():
+            morphs['head'][('FHMH4' if is_h4_fhm(morph_name) else 'PHMH4') + morph_name] = morph_values
+
+    # 3rd-party morphs
     if 'Chest' in dossier and 'JawDropper' in dossier['Chest']:
         print('\n\n// XandM Jaw-Dropper Breast Morphs', file=pz2)
         if not for_ds:
@@ -348,12 +360,13 @@ actor BODY:1
         print('			}', file=pz2)
 
     # write custom body parameters
-    for parm in dossier['Body']['Special'].values():
-        special_parm(parm)
+    if 'Body' in dossier and 'Special' in dossier['Body']:
+        for parm in dossier['Body']['Special'].values():
+            special_parm(parm)
 
-        if 'MorphTarget' in parm:
-            for actor in parm['MorphTarget'].split(','):
-                hide_morphs[actor.strip()].append(parm['Name'])
+            if 'MorphTarget' in parm:
+                for actor in parm['MorphTarget'].split(','):
+                    hide_morphs[actor.strip()].append(parm['Name'])
 
     # write DAZ body parameters
     body = v4_sample.Actor('BODY')
@@ -1135,7 +1148,7 @@ actor hip:1
 
         if 'Hip' in penis and 'Scale' in penis['Hip']:
             print('		scale scale\n			{', file=pz2)
-            tweak_parm(penis['Hip']['Scale'], SCALE_MULTIPLIER, unhide=True, check_max=2)
+            tweak_parm(penis['Hip']['Scale'], SCALE_MULTIPLIER, unhide=True, check_max=1.2)
             print('			}', file=pz2)
 
         for xyz in ['x', 'y', 'z']:
@@ -1202,7 +1215,10 @@ actor ''' + actor + ''':1
 
                 if 'Bend' in penis[actor]:
                     print('		rotateX xrot\n			{', file=pz2)
-                    tweak_parm(penis[actor]['Bend'])
+                    tweak_parm(
+                        penis[actor]['Bend'],
+                        check_min={'gen01': -45, 'gen02': -15, 'gen03': -15, 'gen04': -10}[actor],
+                        check_max={'gen01': 62, 'gen02': 15, 'gen03': 15, 'gen04': 10}[actor])
                     print('			}', file=pz2)
 
             end_actor()
@@ -1356,10 +1372,28 @@ def tweak_parm(
         print('			initValue ' + poser_float(fl), file=pz2)
     if unhide: print('			hidden 0', file=pz2)
     if value is not None:
-        if check_min is not None and fl < check_min:
-            print('			min ' + poser_float(fl), file=pz2)
-        if check_max is not None and fl > check_max:
-            print('			max ' + poser_float(fl), file=pz2)
+
+        # determine the smallest value that this parameter can have
+        if check_min is not None:
+            fl_min = fl
+            for vop_value in value_ops.values():
+                vop_number = value_op_number_float(vop_value, multiplier, negate)
+                if vop_number < 0:
+                    fl_min += vop_number
+            if fl_min < check_min:
+                print('			min ' + poser_float(fl_min), file=pz2)
+
+        # determine the greatest value that this parameter can have
+        if check_max is not None:
+            fl_max = fl
+            for vop_value in value_ops.values():
+                vop_number = value_op_number_float(vop_value, multiplier, negate)
+                if vop_number > 0:
+                    fl_max += vop_number
+            if fl_max > check_max:
+                print('			max ' + poser_float(fl_max), file=pz2)
+
+        # write the current value
         print('''			keys
 				{
 				k  0  ''' + poser_float(fl) + '''
@@ -1394,10 +1428,15 @@ def value_op_delta_add(
 
 
 def value_op_number(s: str, multiplier: float, negate: bool) -> str:
+    return poser_float(value_op_number_float(s, multiplier, negate))
+
+
+def value_op_number_float(
+        s: str, multiplier: float, negate: bool) -> float:
     ss = s.strip()
     fl = float((ss[-1] if ss[-1] == '-' else '') + ss[1:-2]) * multiplier
     if negate: fl = -fl
-    return poser_float(fl)
+    return fl
 
 
 def get_actor_name_by_morph_name(name: str) -> str:

@@ -46,6 +46,8 @@ def inject_material(
     - BumpTexture [str-path]
     - BumpMapIsColorTexture [bool]
     - BumpMapFromColorTexture [bool]
+    - Displacement [float]
+    - DisplacementTexture [str-path]
     - ScatterRadius [str: "<float>, <float>, <float>"]
     - ScatterScale [float]
 
@@ -203,6 +205,17 @@ def inject_material(
         bump_map_from_color_texture = \
             get_value_for_mat(shader['BumpMapFromColorTexture'], mat_name, chosen_mode, bump) == 'true'
 
+    # displacement
+    displacement = 0
+    if 'Displacement' in shader:
+        displacement = float(get_value_for_mat(shader['Displacement'], mat_name, chosen_mode, bump)) * 0.3937
+
+    # displacement texture
+    displacement_texture: Optional[str] = None
+    if 'DisplacementTexture' in shader:
+        displacement_texture = get_value_for_mat(
+            shader['DisplacementTexture'], mat_name, chosen_mode, None)
+
     # SSS radii
     sss_radii = None
     if 'ScatterRadius' in shader:
@@ -286,6 +299,9 @@ def inject_material(
 
     # PhysicalSurface : Bump
     phs.InputByInternalName('Bump').SetFloat(bump)
+
+    # PhysicalSurface : Displacement
+    phs.InputByInternalName('Displacement').SetFloat(displacement)
 
     # PhysicalSurface : SSS Radii
     if sss_radii is not None:
@@ -407,6 +423,16 @@ def inject_material(
         desaturator.OutputByInternalName('Color').ConnectToInput(multiplier.InputByInternalName('Value_2'))
         multiplier.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Bump'))
         node_column_2_y += 114
+
+    if displacement_texture is not None:
+        dsp_map = tree.CreateNode('image_map')
+        dsp_map.SetName('DisplacementTexture')
+        dsp_map.SetLocation(node_column_2_x, node_column_2_y)
+        dsp_map.InputByInternalName('Image_Source').SetString(':Runtime:Texture:' + displacement_texture)
+        dsp_map.OutputByInternalName('Color').ConnectToInput(phs.InputByInternalName('Displacement'))
+        dsp_map.SetInputsCollapsed(True)
+        dsp_map.SetPreviewVisible(True)
+        node_column_2_y += 255
 
     # -------------------------Cycles-Shaders-------------------------
 

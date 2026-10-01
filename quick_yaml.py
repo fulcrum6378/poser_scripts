@@ -1,14 +1,18 @@
 def load(text: str):
     global _yml
     _yml = text.split('\n')
-    return _parse_model(0)[0]
+    return _parse_model(0, -1)[0]
 
 
-def _parse_model(line: int):
+def _parse_model(line: int, parent_indent: int):
     global _yml
 
     # determine the indentation of the current model
     this_indent = _count_indent(line)
+
+    # cancel if the model is empty
+    if this_indent <= parent_indent:
+        return dict(), line
 
     # create an initial model
     if _yml[line][this_indent:this_indent + 2] == '- ':
@@ -58,7 +62,7 @@ def _parse_model(line: int):
             key = l[:-1]
             if key.startswith('- '):
                 key = key[2:].strip()
-            model[key], line = _parse_model(line + 1)
+            model[key], line = _parse_model(line + 1, this_indent)
 
     return model, line
 

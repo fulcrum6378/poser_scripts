@@ -9,6 +9,7 @@ CHARACTERS: Dict[str, str] = {
     'ESPINELA': 'E',
     'LUNA': 'L',
     'MAHDI': 'M',
+    'MILO': 'O',
     'TRIJNTJE': 'T',
     'ZOEY': 'Z',
 }

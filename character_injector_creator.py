@@ -627,13 +627,22 @@ actor head:1
         parm = head.Parameter(morph_name)
         print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
         print('			{', file=pz2)
-        tweak_parm(morph_values, check_min=parm.MinValue())
+        tweak_parm(morph_values, check_min=parm.MinValue(), check_max=parm.MaxValue())
         print('			}', file=pz2)
 
-    if 'Scale' in dossier['Head']:
-        print('		scale scale\n			{', file=pz2)
-        tweak_parm(dossier['Head']['Scale'], SCALE_MULTIPLIER, unhide=True)
-        print('			}', file=pz2)
+    if 'Head' in dossier:
+        if 'Expressions' in dossier['Head']:
+            for expression_name, expression_values in dossier['Head']['Expressions']:
+                parm = head.Parameter(expression_name)
+                print(f'		targetGeom PHM{expression_name}', file=pz2)
+                print('			{', file=pz2)
+                tweak_parm(expression_values, check_min=parm.MinValue(), check_max=parm.MaxValue())
+                print('			}', file=pz2)
+
+        if 'Scale' in dossier['Head']:
+            print('		scale scale\n			{', file=pz2)
+            tweak_parm(dossier['Head']['Scale'], SCALE_MULTIPLIER, unhide=True)
+            print('			}', file=pz2)
 
     end_actor()  # head
 

@@ -148,14 +148,13 @@ def create_injector(
         is_never_muscular = 'BodyBuilder' not in fbms
 
     dynamic_pbms: Iterable[str] = {
-        'BicepsFlex', 'FeetForShoe', 'Inhale', 'ToeBigCurl', 'ToeBigSide-Side', 'ToeBigUp-Down',
+        'BicepsFlex', 'FeetForShoe', 'Inhale', 'StomachDepth',
+        'ToeBigCurl', 'ToeBigSide-Side', 'ToeBigUp-Down',
         'ToesPointed', 'ToesSmallIn', 'ToesSmallUp-Down'}
     if not is_never_muscular:
         dynamic_pbms.update(['CalvesFlex', 'GluteFlexL', 'GluteFlexR'])
     if figure_type == 'Victoria 4':
-        dynamic_pbms.update([
-            'BreastsDiameter', 'NailsLength', 'NipplesBig', 'NipplesDepth', 'StomachDepth'
-        ])
+        dynamic_pbms.update(['BreastsDiameter', 'NailsLength', 'NipplesBig', 'NipplesDepth'])
         if not is_always_thin:
             dynamic_pbms.update([
                 'BreastDownL', 'BreastDownR', 'BreastInL', 'BreastInR', 'BreastOutL', 'BreastOutR',
@@ -632,7 +631,7 @@ actor head:1
 
     if 'Head' in dossier:
         if 'Expressions' in dossier['Head']:
-            for expression_name, expression_values in dossier['Head']['Expressions']:
+            for expression_name, expression_values in dossier['Head']['Expressions'].items():
                 parm = head.Parameter(expression_name)
                 print(f'		targetGeom PHM{expression_name}', file=pz2)
                 print('			{', file=pz2)
@@ -1054,8 +1053,9 @@ actor ''' + leg_side + '''Toe:1
 
         print('\nelse:', file=py3)
 
+        print("    try:", file=py3)
         for actor in ['BODY', 'hip', 'gen01', 'gen04', 'testicles', 'rThigh', 'lThigh']:
-            print(f"    {actor} = figure.Actor('{actor}')", file=py3)
+            print(f"        {actor} = figure.Actor('{actor}')", file=py3)
 
             if actor != 'gen04':
                 for fbm in ['BodyBuilder', 'Definition', 'Emaciated', 'Jeremy', 'SuperHero', 'Smooth',
@@ -1063,15 +1063,18 @@ actor ''' + leg_side + '''Toe:1
                     if actor == 'gen01' and fbm != 'Emaciated': continue
                     if actor == 'testicles' and fbm != 'Jeremy': continue
                     if fbm not in fbms:
-                        print(f"    {actor}.DeleteTarget('FBM{fbm}')", file=py3)
+                        print(f"        {actor}.DeleteTarget('FBM{fbm}')", file=py3)
                 if actor == 'BODY':
-                    print("    BODY.RemoveValueParameter('Uncircumcised')", file=py3)
+                    print("        BODY.RemoveValueParameter('Uncircumcised')", file=py3)
                 elif actor == 'hip':
-                    print("    hip.DeleteTarget('Uncircumcised')", file=py3)
+                    print("        hip.DeleteTarget('Uncircumcised')", file=py3)
             else:
                 for i in range(1, 6):
-                    print(f"    gen04.DeleteTarget('PBMUncircumcised0{i}')", file=py3)
-            print("", file=py3)
+                    print(f"        gen04.DeleteTarget('PBMUncircumcised0{i}')", file=py3)
+
+            if actor != 'lThigh':  # not last iteration
+                print("", file=py3)
+        print("    except poser.error:\n        pass\n", file=py3)
 
         write_python_script_footer()
         py3.close()
@@ -1126,7 +1129,7 @@ actor BODY:1
         for fbm_name, fbm_value in fbms.items():
             print(f'		targetGeom FBM{fbm_name}', file=pz2)
             print('			{', file=pz2)
-            tweak_parm(fbm_value)
+            tweak_parm(fbm_value, dont_use_penis_specials=True)
             print('			}', file=pz2)
 
         # partial body morphs
@@ -1313,6 +1316,10 @@ def special_parm(parm: Dict[str, Any]) -> None:
     elif 'MorphTarget' in parm:
         init_value = '1'
 
+    hidden = '0'
+    if 'Hidden' in parm and parm['Hidden'] == 'true':
+        hidden = '1'
+
     min_val, max_val = '0', '1'
     if 'Min' in parm:
         min_val = parm['Min']
@@ -1326,12 +1333,14 @@ def special_parm(parm: Dict[str, Any]) -> None:
         sensitivity = '1'
 
     master_synched = '0'
-    if 'MasterSynched' in parm:
+    if 'MasterSynched' in parm and parm['MasterSynched'] == 'true':
+        hidden = '1'
         master_synched = '1'
 
     print('''		''' + parm_type + ''' ''' + parm['Name'] + '''
 			{
 			initValue ''' + init_value + '''
+			hidden ''' + hidden + '''
 			min ''' + min_val + '''
 			max ''' + max_val + '''
 			trackingScale ''' + sensitivity + '''
@@ -1359,6 +1368,7 @@ def tweak_parm(
         unhide: bool = False,
         check_min: Optional[float] = None,
         check_max: Optional[float] = None,
+        dont_use_penis_specials: bool = False,
 ) -> None:
     global dossier, pz2
 
@@ -1368,7 +1378,7 @@ def tweak_parm(
         for k, v in user_entry.items():
             if k == 'N':
                 value = user_entry['N']
-            elif penis is None:
+            elif penis is None or dont_use_penis_specials:
                 value_ops[dossier['Body']['Special'][k]['Name']] = v
             else:
                 value_ops[penis['Special'][k]['Name']] = v

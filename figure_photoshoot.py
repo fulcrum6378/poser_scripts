@@ -43,10 +43,7 @@ if continuum:
                 scene.SetCurrentCamera(cam)
                 break
 
-    cam.Parameter('focal').SetValue(50)
-    cam.Parameter('hither').SetValue(0)
-
-    z, y, x, pitch = 0, 0, 0, 0
+    z, y, x, roll, pitch, yaw = 0, 0, 0, 0, 0, 0
     body_scale = figure.Actor('BODY').Parameter('scale').Value()
     hip_scale = figure.Actor('hip').Parameter('scale').Value()
     neck_scale = figure.Actor('neck').Parameter('yScale').Value()
@@ -104,14 +101,15 @@ if continuum:
         pitch = 23
 
     elif target == Target.Penis.name:
-        z = -345 + (100 * relative_scale)
-        y = (y_hip + y_thigh + y_shin + y_feet) * relative_scale * 0.805
+        z = -345 + (75 * relative_scale)
+        y = (y_hip + y_thigh + y_shin + y_feet) * relative_scale * 0.71
         pitch = 25
 
-    if target != Target.Shoes.name:
-        x = body_scale * v4_based_ratio
-
+    cam.Parameter('focal').SetValue(50)
+    cam.Parameter('hither').SetValue(0)
     cam.Parameter('dollyZ').SetValue(z * DOLLY_MULTIPLIER)
     cam.Parameter('dollyY').SetValue(y * DOLLY_MULTIPLIER)
     cam.Parameter('dollyX').SetValue(x * DOLLY_MULTIPLIER)
+    cam.Parameter('roll').SetValue(roll)
     cam.Parameter('pitch').SetValue(pitch)
+    cam.Parameter('yaw').SetValue(yaw)

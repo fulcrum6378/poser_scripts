@@ -580,10 +580,10 @@ def get_shader(mat_name: str, manifest: Dict[str, Any]) -> Tuple[str, Dict[str, 
         pass
 
     # merge super-shaders into sub-shaders
-    if 'Skin' in manifest and \
-            (mat_name in ['1_EyeSocket', '1_Lip', '1_Nostril', '1_SkinFace',
-                          '3_SkinArm', '3_SkinFoot', '3_SkinForearm', '3_SkinHand', '3_SkinLeg']
-             or mat_name.startswith('2_')):
+    if 'Skin' in manifest and (mat_name in [
+        '1_EyeSocket', '1_Lip', '1_Nostril', '1_SkinFace',
+        '3_SkinArm', '3_SkinFoot', '3_SkinForearm', '3_SkinHand', '3_SkinLeg',
+        'Glans', 'Gen_Skin'] or mat_name.startswith('2_')):
         shader = {**manifest['Skin'], **shader}
     if 'Eyes' in manifest and mat_name == '5_Lacrimal':
         # shader |= manifest['Eyes']  # Python 3.9

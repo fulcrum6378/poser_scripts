@@ -15,4 +15,4 @@ for actor in poser.Scene().CurrentFigure().Actors():
     if len(removed) > 0:
         print('Parameters removed from', actor.Name(), 'are:' + removed)
 print(f'\n\nOverall, {morphs_removed} morphs and {parms_removed} '
-       'value parameters were removed from this figure.')
+      'value parameters were removed from this figure.')

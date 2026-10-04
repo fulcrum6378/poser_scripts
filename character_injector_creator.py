@@ -297,7 +297,14 @@ def create_injector(
         for morph_name, morph_values in dossier['Body']['Muscle'].items():
             morphs['BODY']['PBM' + morph_name] = morph_values
 
-    # Aiko 4 Body Morphs TODO
+    # Aiko 4 Body Morphs
+    if figure_type == 'Victoria 4' and 'Body' in dossier and 'Aiko 4' in dossier['Body']:
+        print(f'\n// Aiko 4 Morphs', file=pz2)
+        is_a4_pbm = lambda morph_name: morph_name in ['HandsSmooth', 'TaperFingers']
+        for morph_name, morph_values in sorted(list(dossier['Body']['Aiko 4'].items())):
+            inj_deltas('Aiko 4', 'PBMA4' if is_a4_pbm(morph_name) else 'FBMA4', morph_name)
+        for morph_name, morph_values in dossier['Body']['Aiko 4'].items():
+            morphs['BODY'][('PBMA4' if is_a4_pbm(morph_name) else 'FBMA4') + morph_name] = morph_values
 
     # Hiro 4 Head Morphs
     if figure_type == 'Michael 4' and 'Head' in dossier and 'Hiro 4' in dossier['Head']:

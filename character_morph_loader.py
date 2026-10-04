@@ -4,6 +4,7 @@ import poser
 versions = {
     'Christie': 1,
     'Espinela': 2,
+    'Yuriko': 1,
     'Zoey': 4,
 }
 

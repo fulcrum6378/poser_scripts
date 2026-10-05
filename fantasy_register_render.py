@@ -11,6 +11,7 @@ import quick_yaml
 
 DESKTOP = os.environ['USERPROFILE'] + '\\Desktop'
 POWERSHELL = r'C:\Program Files\PowerShell\7\pwsh.exe'
+PYTHON = os.environ['LOCALAPPDATA'] + r'\Python\bin\python.exe'
 
 renderers = [
     {
@@ -107,9 +108,9 @@ if continuum:
 
     # let the EXR file be denoised
     if not os.path.isdir(os.path.join(DESKTOP, choice + ' - ' + export_name)):
-        cmd = os.environ['LOCALAPPDATA'] + r'\Python\bin\python.exe ' + \
-              f"{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p{renderers[renderer]["PoserVersion"]}.py '" + \
-              exr_to_be_denoised + "'"
+        denoise_script = \
+            f'{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p{renderers[renderer]["PoserVersion"]}.py'
+        cmd = PYTHON + ' ' + denoise_script + " '" + exr_to_be_denoised + "'"
         subprocess.Popen(
             f'start "" "{POWERSHELL}" -Command "{cmd}"',
             shell=True,

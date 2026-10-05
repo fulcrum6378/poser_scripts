@@ -7,12 +7,15 @@ if text_entry.Show() == 1:
 
     for actor in poser.Scene().CurrentFigure().Actors():
         for parm in actor.Parameters():
-            if (parm.InternalName().startswith('FBM') or parm.InternalName().startswith('PBM')) and \
-                    parm.InternalName() not in selection and parm.Value() == 0:
+            parm_vis_name = parm.Name()
+            parm_int_name = parm.InternalName()
+            if (parm_int_name.startswith('FBM') or parm_int_name.startswith('PBM')) and \
+                    parm_vis_name not in selection and parm_int_name not in selection and \
+                    parm.Value() == 0:
                 try:
                     if parm.IsMorphTarget():
-                        actor.DeleteTarget(parm.Name())
+                        actor.DeleteTarget(parm_vis_name)
                     else:
-                        actor.RemoveValueParameter(parm.Name())
+                        actor.RemoveValueParameter(parm_vis_name)
                 except:
                     pass

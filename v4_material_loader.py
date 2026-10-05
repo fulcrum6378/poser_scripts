@@ -97,7 +97,7 @@ def inject_material(
     if user_choices is None:
         if 'DefaultMode' in shader:
             chosen_mode = int(shader['DefaultMode']) - 1
-    elif 'Modes' in shader:
+    elif 'Modes' in shader and shader['Modes'] != 'null':
         if len(shader['Modes']) == 1:
             chosen_mode = 0
         else:
@@ -161,6 +161,7 @@ def inject_material(
     opacity_texture: Optional[str] = None
     if 'OpacityTexture' in shader:
         opacity_texture = get_value_for_mat(shader['OpacityTexture'], mat_name, chosen_mode, None)
+        if opacity_texture == 'null': opacity_texture = None
 
     # opacity
     trans = 0
@@ -204,6 +205,7 @@ def inject_material(
     elif 'BumpMapFromColorTexture' in shader:
         bump_map_from_color_texture = \
             get_value_for_mat(shader['BumpMapFromColorTexture'], mat_name, chosen_mode, bump) == 'true'
+    if bump_texture == 'null': bump_texture = None
 
     # displacement
     displacement = 0
@@ -215,6 +217,7 @@ def inject_material(
     if 'DisplacementTexture' in shader:
         displacement_texture = get_value_for_mat(
             shader['DisplacementTexture'], mat_name, chosen_mode, None)
+        if displacement_texture == 'null': displacement_texture = None
 
     # SSS radii
     sss_radii = None

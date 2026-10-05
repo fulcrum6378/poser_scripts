@@ -289,14 +289,6 @@ def create_injector(
                 inj_deltas('Stephanie 4', 'PBM' if not morph_name.startswith('S4') else 'FBM',
                            morph_name)
 
-    # V4 Muscle Morphs
-    if figure_type == 'Victoria 4' and 'Body' in dossier and 'Muscle' in dossier['Body']:
-        print(f'\n// V4 Muscle Morphs', file=pz2)
-        for morph_name, morph_values in sorted(list(dossier['Body']['Muscle'].items())):
-            inj_deltas('Muscle', 'PBM', morph_name)
-        for morph_name, morph_values in dossier['Body']['Muscle'].items():
-            morphs['BODY']['PBM' + morph_name] = morph_values
-
     # Aiko 4 Body Morphs
     if figure_type == 'Victoria 4' and 'Body' in dossier and 'Aiko 4' in dossier['Body']:
         print(f'\n// Aiko 4 Morphs', file=pz2)
@@ -315,6 +307,14 @@ def create_injector(
             inj_deltas('Hiro 4', 'FHMH4' if is_h4_fhm(morph_name) else 'PHMH4', morph_name)
         for morph_name, morph_values in dossier['Head']['Hiro 4'].items():
             morphs['head'][('FHMH4' if is_h4_fhm(morph_name) else 'PHMH4') + morph_name] = morph_values
+
+    # V4 Muscle Morphs
+    if figure_type == 'Victoria 4' and 'Body' in dossier and 'Muscle' in dossier['Body']:
+        print(f'\n// V4 Muscle Morphs', file=pz2)
+        for morph_name, morph_values in sorted(list(dossier['Body']['Muscle'].items())):
+            inj_deltas('Muscle', 'PBM', morph_name)
+        for morph_name, morph_values in dossier['Body']['Muscle'].items():
+            morphs['BODY']['PBM' + morph_name] = morph_values
 
     # 3rd-party morphs
     if 'Chest' in dossier and 'JawDropper' in dossier['Chest']:

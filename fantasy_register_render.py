@@ -10,19 +10,28 @@ from typing import List
 import quick_yaml
 
 DESKTOP = os.environ['USERPROFILE'] + '\\Desktop'
-RENDER_CACHE_1 = DESKTOP
-RENDER_CACHE_2 = '\\\\NERA\\Renders'
-DENOISE_SCRIPT_1 = f'{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p14.py'
-DENOISE_SCRIPT_2 = f'{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p11.py'
-EXR_STORAGE = r'R:\Fantasy Renders\EXR'
 POWERSHELL = r'C:\Program Files\PowerShell\7\pwsh.exe'
+
+renderers = [
+    {
+        'ComputerName': 'Chimaera',
+        'RenderCache': DESKTOP,
+        'PoserVersion': '14',
+        'ExrStorage': os.environ['USERPROFILE'] + '\\Videos',
+    },
+    {
+        'ComputerName': 'Nera',
+        'RenderCache': '\\\\NERA\\Renders',
+        'PoserVersion': '11',
+        'ExrStorage': r'R:\Fantasy Renders\EXR',
+    }
+]
 
 scene_path: str = poser.Scene().DocumentPath()
 album_path: str = os.path.dirname(scene_path)
 if os.path.basename(album_path) == 'Templates':
     album_path = os.path.dirname(album_path)
-render_cache = RENDER_CACHE_2
-denoise_script = DENOISE_SCRIPT_2
+renderer = 1
 continuum: bool = os.path.basename(album_path)[2:4] == '. '
 
 # check if this is a Fantasy scene first
@@ -33,31 +42,31 @@ if not continuum:
 else:
     album_id, album_name = os.path.basename(album_path).split('. ')
 
-# determine the render cache directory
+# determine the render pipeline
 if continuum:
     have_laptop_render = False
-    for file in os.listdir(RENDER_CACHE_1):
+    for file in os.listdir(renderers[0]['RenderCache']):
         if file.endswith('.exr') and \
-                os.path.getsize(os.path.join(RENDER_CACHE_1, file)) > 104_857_600:  # 100 MB
+                os.path.getsize(os.path.join(renderers[0]['RenderCache'], file)) > 104_857_600:  # 100 MB
             have_laptop_render = True
     if have_laptop_render:
         if poser.DialogSimple.YesNo('Is it rendered in this device?') == 1:
-            render_cache = RENDER_CACHE_1
+            renderer = 0
             denoise_script = DENOISE_SCRIPT_1
-    if not os.path.isdir(render_cache):
+    if not os.path.isdir(renderers[renderer]['RenderCache']):
         poser.DialogSimple.MessageBox('Nera is unavailable.')
         continuum = False
 
 # determine the EXR storage directory
 if continuum:
-    if render_cache == RENDER_CACHE_2 and not os.path.isdir(EXR_STORAGE):
+    if not os.path.isdir(renderers[renderer]['ExrStorage']):
         continuum = poser.DialogSimple.YesNo('EXR storage unavailable. Continue?')
 
 # let the user choose a render from the render cache
 renders: List[str]
 if continuum:
     renders = []
-    for render in os.listdir(render_cache):
+    for render in os.listdir(renderers[renderer]['RenderCache']):
         if not render.endswith('.exr'): continue
         renders.append(render.rsplit('.', 1)[0])
     choice = poser.DialogSimple.AskMenu('Fantasy Register Render', 'Choose a render:', tuple(renders))
@@ -67,7 +76,7 @@ if continuum:
     #
     # catalogue this render in the YML file of its album
     yml = os.path.join(album_path, album_name + '.yml')
-    exr_path = os.path.join(render_cache, choice + '.exr')
+    exr_path = os.path.join(renderers[renderer]['RenderCache'], choice + '.exr')
     if os.path.isfile(yml):
         render_name = list(quick_yaml.load(open(yml, 'r').read()).keys())[-1]
         render_id = int(render_name.split('. ')[0]) + 1
@@ -80,14 +89,17 @@ if continuum:
     start_time = datetime(n(dt[0:4]), n(dt[5:7]), n(dt[8:10]), n(dt[11:13]), n(dt[14:16]), n(dt[17:19]))
     finish_time = os.path.getmtime(exr_path)
     dt_format = '%Y/%m/%d %H:%M:%S'
+    pc_name = renderers[renderer]['ComputerName']
     open(yml, 'a').write(
         f'- {render_id}:\n'
-        f'  - {start_time.strftime(dt_format)} - [{math.trunc(start_time.timestamp())}]\n'
+        f'  - {start_time.strftime(dt_format)} - [{math.trunc(start_time.timestamp())}]  # {pc_name}\n'
         f'  - {datetime.fromtimestamp(finish_time).strftime(dt_format)} - [{math.trunc(finish_time)}]\n')
 
     # copy the EXR file
-    if render_cache == RENDER_CACHE_2:
-        exr_to_be_denoised = os.path.join(EXR_STORAGE, choice + ' - ' + export_name + '.exr')
+    if renderer == 1:
+        exr_to_be_denoised = os.path.join(
+            renderers[renderer]['ExrStorage'],
+            choice + ' - ' + export_name + '.exr')
         if not os.path.isfile(exr_to_be_denoised):
             shutil.copy2(exr_path, exr_to_be_denoised)
     else:
@@ -96,7 +108,8 @@ if continuum:
     # let the EXR file be denoised
     if not os.path.isdir(os.path.join(DESKTOP, choice + ' - ' + export_name)):
         cmd = os.environ['LOCALAPPDATA'] + r'\Python\bin\python.exe ' + \
-              f"{denoise_script} '" + exr_to_be_denoised + "'"
+              f"{os.environ["ONEDRIVE"]}\\Hacks\\poser_denoise_p{renderers[renderer]["PoserVersion"]}.py '" + \
+              exr_to_be_denoised + "'"
         subprocess.Popen(
             f'start "" "{POWERSHELL}" -Command "{cmd}"',
             shell=True,

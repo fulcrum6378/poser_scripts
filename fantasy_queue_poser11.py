@@ -11,7 +11,7 @@ CONTENT = '\\\\NERA\\Content\\'
 scene = poser.Scene()
 doc_path = scene.DocumentPath()
 
-errors = fantasy_render_preconditions.check_scene()
+errors = fantasy_render_preconditions.check_scene(True)
 continuum = len(errors) == 0
 if not continuum:
     continuum = poser.DialogSimple.YesNo(errors + 'Do you want to continue?') == 1

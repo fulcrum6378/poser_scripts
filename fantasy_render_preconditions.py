@@ -1,6 +1,6 @@
 import poser
 
-def check_scene() -> str:
+def check_scene(for_old_poser: bool) -> str:
     scene = poser.Scene()
     errors = ''
 
@@ -23,15 +23,25 @@ def check_scene() -> str:
         except poser.error:
             pass
 
+        # if we have enough memory, subdivision is recommended
+        if not for_old_poser and figure.Name().isupper() and figure.NumbSubdivRenderLevels() == 0:
+            errors += f'{figure_name} better have a higher subdivision level.\n'
+
     # detect errors in lights
     for light in scene.Lights():
+        light_name = light.Name()
+        is_light_on = light.On() == 1
 
         # detect if any preview lights are not disabled (Poser 11 renders preview lights)
-        if light.LightPreview() == 1 and light.LightOn() == 1:
+        if is_light_on and for_old_poser and light.LightPreview() == 1:
             errors += f'Preview light {light.Name()} is on!\n'
 
         # detect if any lights have disabled shadows
-        if light.LightOn() == 1 and light.Shadow() == 0:
-            errors += f'Light {light.Name()} has disabled shadows!\n'
+        if is_light_on and light.Shadow() == 0:
+            errors += f'Light {light_name} has disabled shadows!\n'
+
+        # detect if any test lights are on
+        if is_light_on and 'Test' in light_name:
+            errors += f'Light {light_name} is on!\n'
 
     return errors

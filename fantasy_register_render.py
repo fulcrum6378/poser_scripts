@@ -53,7 +53,6 @@ if continuum:
     if have_laptop_render:
         if poser.DialogSimple.YesNo('Is it rendered in this device?') == 1:
             renderer = 0
-            denoise_script = DENOISE_SCRIPT_1
     if not os.path.isdir(renderers[renderer]['RenderCache']):
         poser.DialogSimple.MessageBox('Nera is unavailable.')
         continuum = False

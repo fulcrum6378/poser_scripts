@@ -24,7 +24,7 @@ renderers = [
         'ComputerName': 'Nera',
         'RenderCache': '\\\\NERA\\Renders',
         'PoserVersion': '11',
-        'ExrStorage': r'R:\Fantasy Renders\EXR',
+        'ExrStorage': os.environ['USERPROFILE'] + '\\Videos\\EXR',
     }
 ]
 

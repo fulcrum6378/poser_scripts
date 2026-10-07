@@ -18,13 +18,13 @@ renderers = [
         'ComputerName': 'Chimaera',
         'RenderCache': DESKTOP,
         'PoserVersion': '14',
-        'ExrStorage': os.environ['USERPROFILE'] + '\\Videos',
+        'ExrStorage': os.environ['USERPROFILE'] + '\\Videos\\Fantasy',
     },
     {
         'ComputerName': 'Nera',
         'RenderCache': '\\\\NERA\\Renders',
         'PoserVersion': '11',
-        'ExrStorage': os.environ['USERPROFILE'] + '\\Videos\\EXR',
+        'ExrStorage': os.environ['USERPROFILE'] + '\\Videos\\Fantasy',
     }
 ]
 

@@ -122,6 +122,7 @@ if continuum:
         # index texture directories
         texture_dirs: Set[str] = set()
         for file in required_paths:
+            if not file.endswith('.jpg') and not file.endswith('.png'): continue
             texture_dirs.add(os.path.dirname(file))
 
         # revert changes

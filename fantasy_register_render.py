@@ -16,7 +16,7 @@ PYTHON = os.environ['LOCALAPPDATA'] + r'\Python\bin\python.exe'
 renderers = [
     {
         'ComputerName': 'Chimaera',
-        'RenderCache': DESKTOP,
+        'RenderCache': os.environ['USERPROFILE'] + '\\Videos',
         'PoserVersion': '14',
         'ExrStorage': os.environ['USERPROFILE'] + '\\Videos\\Fantasy',
     },

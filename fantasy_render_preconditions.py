@@ -30,7 +30,7 @@ def check_scene(for_old_poser: bool) -> str:
     # detect errors in lights
     for light in scene.Lights():
         light_name = light.Name()
-        is_light_on = light.On() == 1
+        is_light_on = light.LightOn() == 1
 
         # detect if any preview lights are not disabled (Poser 11 renders preview lights)
         if is_light_on and for_old_poser and light.LightPreview() == 1:
@@ -44,4 +44,12 @@ def check_scene(for_old_poser: bool) -> str:
         if is_light_on and 'Test' in light_name:
             errors += f'Light {light_name} is on!\n'
 
+    # check if any textures are compressed no matter how much rendering memory exists
+    # TODO
+
     return errors
+
+
+if __name__ == '__main__':
+    errors = check_scene(poser.DialogSimple.YesNo('Check errors for rendering in old Poser?') == 1)
+    poser.DialogSimple.MessageBox(errors if len(errors) > 0 else 'All clear!')

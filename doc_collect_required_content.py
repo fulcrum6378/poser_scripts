@@ -5,7 +5,8 @@ import shutil
 from typing import Set, Tuple
 
 
-def collect_pz3_required_paths(pz3_path: str, silent: bool = True) -> Tuple[Set[str], bool]:
+def collect_pz3_required_paths(pz3_path: str, silent: bool = True) \
+        -> Tuple[Set[str], bool]:
     """
     Index all path references in the PZ3 file
 

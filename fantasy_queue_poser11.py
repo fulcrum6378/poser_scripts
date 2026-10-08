@@ -66,10 +66,14 @@ if continuum:
         'AtmosphereMaterialActor', 'Atmosphere'
     )
 
-    # modernise the background shader tree
-    bg_shader_tree = bg_shader_tree.replace(  # Mapping:Vector Type => Texture
+    # modernise enum values
+    bg_shader_tree = bg_shader_tree.replace(  # Cycles:Mapping:Vector Type => Texture
         'name "Vector Type"\n					value 4 0 0',
         'name "Vector Type"\n					value 3 0 0',
+    )
+    pz3 = pz3.replace(  # Cycles:Mix:Blend Type => Darken
+        'name "Blend Type"\n					value 1 0 0',
+        'name "Vector Type"\n					value 9 0 0',
     )
 
     cur = pz3.rindex('\n\ndoc\n	{\n')

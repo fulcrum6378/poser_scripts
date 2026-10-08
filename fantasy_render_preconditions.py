@@ -1,4 +1,8 @@
+import os
 import poser
+
+from doc_compress_textures import uncompressed_textures_repo
+
 
 def check_scene(for_old_poser: bool) -> str:
     scene = poser.Scene()
@@ -45,7 +49,8 @@ def check_scene(for_old_poser: bool) -> str:
             errors += f'Light {light_name} is on!\n'
 
     # check if any textures are compressed no matter how much rendering memory exists
-    # TODO
+    if len(os.listdir(uncompressed_textures_repo)) != 0:
+        poser.DialogSimple.MessageBox('Beware that some textures have been compressed.')
 
     return errors
 

@@ -96,14 +96,11 @@ if continuum:
         f'  - {datetime.fromtimestamp(finish_time).strftime(dt_format)} - [{math.trunc(finish_time)}]\n')
 
     # copy the EXR file
-    if renderer == 1:
-        exr_to_be_denoised = os.path.join(
-            renderers[renderer]['ExrStorage'],
-            choice + ' - ' + export_name + '.exr')
-        if not os.path.isfile(exr_to_be_denoised):
-            shutil.copy2(exr_path, exr_to_be_denoised)
-    else:
-        exr_to_be_denoised = exr_path
+    exr_to_be_denoised = os.path.join(
+        renderers[renderer]['ExrStorage'],
+        choice + ' - ' + export_name + '.exr')
+    if not os.path.isfile(exr_to_be_denoised):
+        shutil.copy2(exr_path, exr_to_be_denoised)
 
     # let the EXR file be denoised
     if not os.path.isdir(os.path.join(DESKTOP, choice + ' - ' + export_name)):
@@ -127,6 +124,9 @@ if continuum:
         pmd_path = scene_path.replace('.pz3', '.pmd')
         if os.path.isfile(pmd_path):
             command.append(os.path.basename(pmd_path))
+        duf_path = scene_path.replace('.pz3', '.duf')
+        if os.path.isfile(duf_path):
+            command.append(os.path.basename(duf_path))
         lod_path = scene_path.replace('.pz3', '.txt')
         if os.path.isfile(lod_path):
             command.append(os.path.basename(lod_path))

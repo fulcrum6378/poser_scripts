@@ -13,12 +13,7 @@ def _parse_model(line: int, parent_indent: int):
     # cancel if the model is empty
     if this_indent <= parent_indent:
         return dict(), line
-
-    # create an initial model
-    if _yml[line][this_indent:this_indent + 2] == '- ':
-        model = list()
-    else:
-        model = dict()
+    model = None
 
     # loop on each line
     while line != len(_yml):
@@ -34,6 +29,13 @@ def _parse_model(line: int, parent_indent: int):
         if l == '' or l.startswith('#'):
             line += 1
             continue
+
+        # create an initial model if not exists
+        if model == None:
+            if _yml[line][this_indent:this_indent + 2] == '- ':
+                model = list()
+            else:
+                model = dict()
 
         # convert into dict if necessary
         if isinstance(model, list) and (l.endswith(':') or ': ' in l):

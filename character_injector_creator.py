@@ -14,6 +14,7 @@ def create_injector(
         v4_sample: poser.FigureType,
         character_name: str,
         character_version: str,
+        dossier_path: str,
         for_ds: bool,
 ) -> None:
     global dossier, py3, pz2, figure_type, figure_type_abbr, penis
@@ -82,7 +83,7 @@ def create_injector(
             print(f"    body.DeleteTarget('{morph['Name']}')", file=py3)
 
     print('\nelse:', file=py3)
-    write_python_script_footer()
+    write_python_script_footer(dossier_path)
     py3.close()
 
     # -------------------------POSER SCRIPT-------------------------
@@ -1083,7 +1084,7 @@ actor ''' + leg_side + '''Toe:1
                 print("", file=py3)
         print("    except poser.error:\n        pass\n", file=py3)
 
-        write_python_script_footer()
+        write_python_script_footer(dossier_path)
         py3.close()
 
         pz2 = open(os.path.join(
@@ -1274,16 +1275,23 @@ def write_python_script_header(character_name: str) -> None:
     global py3
     print(f"""import poser
 
+import v4_material_loader
+
 # this script is executed twice
-figure = poser.Scene().CurrentFigure()
+scene = poser.Scene()
+figure = scene.CurrentFigure()
 if figure.Name() != '{character_name.upper()}':
     figure.SetName('{character_name.upper()}')""", file=py3)
 
 
-def write_python_script_footer() -> None:
+def write_python_script_footer(dossier_path: str) -> None:
     global py3
-    print("""    poser.ExecFile('../MAHDI/figure_remove_empty_daz_params_silent.py')
-    poser.ExecFile('../MAHDI/character_material_loader.py')""", file=py3)
+    print(f"""    poser.ExecFile('../MAHDI/figure_remove_empty_daz_params_silent.py')
+
+    shaders = quick_yaml.load(open(r'{dossier_path}', 'r').read())['Shaders']
+    for mat in figure.Materials():
+        v4_material_loader.inject_material(mat, shaders, None)
+    scene.Draw()""", file=py3)
 
 
 def write_poser_script_header() -> None:
@@ -1538,4 +1546,5 @@ if __name__ == '__main__':
             figure,
             dossier_name_split[0],
             dossier_name_split[1].split(' ')[0],
+            dossier_path,
             poser.DialogSimple.YesNo('Select Yes for Poser\nNo for DAZ Studio') != 1)

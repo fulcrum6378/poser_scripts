@@ -1,3 +1,4 @@
+import os
 import poser
 from typing import Any, Dict, Optional, Set, Tuple
 
@@ -164,10 +165,10 @@ def inject_material(
         if opacity_texture == 'null': opacity_texture = None
 
     # opacity
-    trans = 0
+    opacity = 0
     if mat_name in ['1_Eyebrow', '5_Cornea', '7_EyeSurface', '7_Tear', 'Invis', 'Pubic_Hair', 'Preview'] or \
             opacity_texture is not None:
-        trans = 1
+        opacity = 1
 
     # diffuse roughness
     rough = 0
@@ -267,13 +268,34 @@ def inject_material(
         glossy = get_value_for_mat(shader['Glossy'], mat_name, chosen_mode, None)
         glossy_roughness = get_value_for_mat(shader['GlossyRoughness'], mat_name, chosen_mode, None)
 
+    # -----------------------Preview-Renderer-------------------------
+
+    material.SetAmbientColor(0, 0, 0)
+    material.SetAmbientMapFileName(None)
+    material.SetBumpMapFileName(find_absolute_path(bump_texture))
+    material.SetBumpStrength(bump)
+    material.SetDiffuseColor(*color)
+    material.SetNs(0)
+    # Ns is an exponent used in the calculation of the specular highlight.
+    # A higher exponent results in a smaller highlight and vice versa.
+    material.SetReflectionColor(0, 0, 0)
+    material.SetReflectionMapFileName(None)
+    material.SetReflectionStrength(0)
+    material.SetSpecularColor(0, 0, 0)
+    material.SetSpecularMapFileName(None)
+    material.SetTextureColor(*color)
+    material.SetTextureMapFileName(find_absolute_path(diffuse_texture))
+    material.SetTransparencyMapFileName(find_absolute_path(opacity_texture))
+    material.SetTransparencyMax(opacity)
+    material.SetTransparencyMin(opacity)
+
     # -----------------------PhysicalSurface--------------------------
 
     # PhysicalSurface : Color
     phs.InputByInternalName('Color').SetColor(*color)
 
     # PhysicalSurface : Transparency
-    phs.InputByInternalName('Transparency').SetFloat(trans)
+    phs.InputByInternalName('Transparency').SetFloat(opacity)
     if opacity_texture is not None:
         phs.InputByInternalName('TransparencyMode').SetFloat(1)
 
@@ -650,3 +672,13 @@ def easy_color(any_str: Any) -> Tuple[float, float, float]:
         any_str = any_str.replace('#', '').replace('0x', '')
         return int(any_str[0:2], 16) / 255.0, int(any_str[2:4], 16) / 255.0, int(any_str[4:6], 16) / 255.0
     return 0, 0, 0
+
+
+def find_absolute_path(relative_path: Optional[str]) -> Optional[str]:
+    if relative_path is None: return None
+    abs_path = None
+    for content in poser.Libraries():
+        candidate = content + (':Runtime:Textures:' + relative_path).replace(':', os.path.sep)
+        if os.path.isfile(candidate):
+            return candidate
+    return None

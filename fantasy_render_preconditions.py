@@ -48,6 +48,12 @@ def check_scene(for_old_poser: bool) -> str:
         if is_light_on and 'Test' in light_name:
             errors += f'Light {light_name} is on!\n'
 
+    # check if render settings are fit
+    pxs = scene.CurrentSuperFlyOptions().PixelSamples()
+    recommended_pxs = range(10, 19) if not for_old_poser else range(20, 29)
+    if pxs not in recommended_pxs:
+        errors += f'{pxs} pixel samples are not recommended.\n'
+
     # check if any textures are compressed no matter how much rendering memory exists
     if len(os.listdir(uncompressed_textures_repo)) != 0:
         poser.DialogSimple.MessageBox('Beware that some textures have been compressed.')

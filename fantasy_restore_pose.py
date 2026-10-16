@@ -4,6 +4,9 @@ import subprocess
 
 import figure_pose_from_scene
 
+# import importlib
+# importlib.reload(figure_pose_from_scene)
+
 # determine the Fantasy render ID
 text_entry = poser.DialogTextEntry(0, 'Enter the Fantasy render ID:')
 continuum = text_entry.Show() == 1
@@ -30,7 +33,7 @@ if continuum:
             album_path = os.path.join(gallery_path, album_name)
     continuum = album_path is not None
     if not continuum:
-        poser.DialogSimple.MessageBox('Album not found!')
+        poser.DialogSimple.MessageBox(f'Album {album_name} not found!')
 
 # find the candidate archives
 candidate_archives = {}
@@ -41,7 +44,8 @@ if continuum:
             candidate_archives[archive_name] = os.path.join(archive_dir, archive_name)
     continuum = len(candidate_archives) > 0
     if not continuum:
-        poser.DialogSimple.MessageBox('Archive not found!')
+        poser.DialogSimple.MessageBox(f'Archive {render_id} not found!')
+        subprocess.Popen(f'explorer "{archive_dir}"')
 
 # let the user choose which scene if necessary
 archive_path = None

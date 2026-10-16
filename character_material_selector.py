@@ -3,8 +3,8 @@ import poser
 import v4_material_loader
 from character_dossier import load_dossier
 
-import importlib
-importlib.reload(v4_material_loader)
+# import importlib
+# importlib.reload(v4_material_loader)
 
 choices = set()
 scene = poser.Scene()

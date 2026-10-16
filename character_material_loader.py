@@ -3,9 +3,9 @@ import poser
 import character_dossier
 import v4_material_loader
 
-import importlib
-importlib.reload(character_dossier)
-importlib.reload(v4_material_loader)
+# import importlib
+# importlib.reload(character_dossier)
+# importlib.reload(v4_material_loader)
 
 scene = poser.Scene()
 figure_name = scene.CurrentFigure().Name()

@@ -6,7 +6,7 @@ import subprocess
 from datetime import datetime
 from typing import List
 
-from _config import DESKTOP, POWERSHELL, PYTHON, WINRAR
+from commons import DESKTOP, POWERSHELL, PYTHON, WINRAR
 import quick_yaml
 
 renderers = [

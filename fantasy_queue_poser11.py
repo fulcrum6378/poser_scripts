@@ -3,7 +3,7 @@ import poser
 import shutil
 
 import fantasy_render_preconditions
-from _config import DESKTOP
+from commons import DESKTOP
 from doc_collect_required_content import collect_pz3_required_paths, copy_to
 
 SCENES = '\\\\NERA\\Scenes\\'

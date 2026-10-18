@@ -3,7 +3,7 @@ import poser
 import subprocess
 
 import figure_pose_from_scene
-from _config import WINRAR
+from commons import WINRAR
 
 # import importlib
 # importlib.reload(figure_pose_from_scene)

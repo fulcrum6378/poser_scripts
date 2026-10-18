@@ -1,7 +1,7 @@
 import os
 import poser
 
-from _config import DESKTOP
+from commons import DESKTOP
 
 if 'INNOVATION' not in os.listdir(DESKTOP):
     for actor in poser.Scene().CurrentFigure().Actors():

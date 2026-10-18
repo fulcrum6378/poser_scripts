@@ -4,7 +4,7 @@ import poser
 import shutil
 from typing import Set, Tuple
 
-from _config import DESKTOP
+from commons import DESKTOP
 
 
 def collect_pz3_required_paths(pz3_path: str, silent: bool = True) \

@@ -3,6 +3,7 @@ import poser
 import shutil
 
 import fantasy_render_preconditions
+from _config import DESKTOP
 from doc_collect_required_content import collect_pz3_required_paths, copy_to
 
 SCENES = '\\\\NERA\\Scenes\\'
@@ -117,26 +118,26 @@ if continuum:
     nera_offline = False
     if not os.path.isdir(SCENES):
         if poser.DialogSimple.YesNo('Nera is unavailable. Save in Desktop?') == 1:
-            SCENES = os.environ['USERPROFILE'] + '\\Desktop\\'
+            SCENES = DESKTOP
             nera_offline = True
         else:
             continuum = False
 
-    # check if the file doesn't already exist
-    if continuum:
-        SCENES += os.path.basename(doc_path)
-        if os.path.isfile(SCENES):
-            continuum = poser.DialogSimple.YesNo('The scene is already queued. Overwrite?')
+# check if the file doesn't already exist
+if continuum:
+    SCENES += os.path.basename(doc_path)
+    if os.path.isfile(SCENES):
+        continuum = poser.DialogSimple.YesNo('The scene is already queued. Overwrite?')
 
-    # write the files
-    if continuum:
-        open(SCENES, 'w', encoding='cp1252').write(pz3)
-        pmd_path = doc_path.replace('.pz3', '.pmd')
-        if os.path.isfile(pmd_path):
-            shutil.copy2(pmd_path, SCENES.replace('.pz3', '.pmd'))
+# write the files
+if continuum:
+    open(SCENES, 'w', encoding='cp1252').write(pz3)
+    pmd_path = doc_path.replace('.pz3', '.pmd')
+    if os.path.isfile(pmd_path):
+        shutil.copy2(pmd_path, SCENES.replace('.pz3', '.pmd'))
 
-        # write required content
-        if not nera_offline:
-            copy_to(CONTENT, collect_pz3_required_paths(doc_path)[0])
+    # write required content
+    if not nera_offline:
+        copy_to(CONTENT, collect_pz3_required_paths(doc_path)[0])
 
-        poser.DialogSimple.MessageBox('Ready to render in Poser 11...')
+    poser.DialogSimple.MessageBox('Ready to render in Poser 11...')

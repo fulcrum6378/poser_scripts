@@ -14,8 +14,8 @@ MAX_RANK = 3
 MIN_SIZE = total / 1000
 
 
-def collect_objects(rank: int, min_par: int, max_par: int
-                    ) -> Optional[Dict[str, Tuple[int, Optional[dict]]]]:
+def collect_objects(rank: int, min_par: int, max_par: int) \
+        -> Optional[Dict[str, Tuple[int, Optional[dict]]]]:
     global pz3
     cur = min_par
     indent = '	' * rank
@@ -49,7 +49,8 @@ def collect_objects(rank: int, min_par: int, max_par: int
     return res_ if len(res_) > 1 else None
 
 
-def print_stats(title_: Optional[str], total_: int, items: Optional[Dict], rank: int) -> None:
+def print_stats(title_: Optional[str], total_: int, items: Optional[Dict], rank: int) \
+        -> None:
     global total
     if title_ is not None:
         percent = (total_ / total) * 100.0

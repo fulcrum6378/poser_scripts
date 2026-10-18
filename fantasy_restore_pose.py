@@ -3,6 +3,7 @@ import poser
 import subprocess
 
 import figure_pose_from_scene
+from _config import WINRAR
 
 # import importlib
 # importlib.reload(figure_pose_from_scene)
@@ -63,9 +64,8 @@ if continuum:
 # find the scene in the archive
 pz3_name = None
 if continuum:
-    RAR = os.path.join(os.environ['PROGRAMFILES'], 'WinRAR', 'Rar.exe')
     files = subprocess.run(
-        [RAR, 'lb', archive_path], capture_output=True, text=True
+        [WINRAR, 'lb', archive_path], capture_output=True, text=True
     ).stdout.split('\n')
     for file in files:
         if file.endswith('.pz3'):
@@ -78,6 +78,6 @@ if continuum:
 if continuum:
     figure_pose_from_scene.pose(
         pz3=subprocess.run(
-            [RAR, 'p', archive_path, pz3_name], capture_output=True, text=True
+            [WINRAR, 'p', archive_path, pz3_name], capture_output=True, text=True
         ).stdout
     )

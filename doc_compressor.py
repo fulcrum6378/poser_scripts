@@ -3,6 +3,8 @@ import os
 import poser
 from typing import Iterable, List, Optional, Tuple
 
+from doc_collect_required_content import print_bytes
+
 POSER_EXTENSIONS = {
     'pz3': 'pzz',
     'pz2': 'p2z',
@@ -53,7 +55,9 @@ def choose_poser_docs(allowed_extensions: Iterable[str]) \
 
 if __name__ == '__main__':
     count = 0
+    reduction = 0
     for uncompressed_path in choose_poser_docs(list(POSER_EXTENSIONS.keys()))[1]:
+        uncompressed_size = os.path.getsize(uncompressed_path)
         data = open(uncompressed_path, 'r').read()
         path_no_ext, ext = uncompressed_path.rsplit('.', 1)
         date_modified = os.path.getmtime(uncompressed_path)
@@ -62,5 +66,6 @@ if __name__ == '__main__':
         os.utime(compressed_path, (date_modified, date_modified))
         os.remove(uncompressed_path)
         count += 1
+        reduction += uncompressed_size - os.path.getsize(compressed_path)
     if count > 0:
-        print(f'{count} files were compressed.')
+        print(f'{count} files were compressed reducing {print_bytes(reduction)}.')

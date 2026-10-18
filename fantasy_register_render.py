@@ -1,17 +1,13 @@
 import math
 import os
-import shutil
-
 import poser
+import shutil
 import subprocess
 from datetime import datetime
 from typing import List
 
+from _config import DESKTOP, POWERSHELL, PYTHON, WINRAR
 import quick_yaml
-
-DESKTOP = os.environ['USERPROFILE'] + '\\Desktop'
-POWERSHELL = r'C:\Program Files\PowerShell\7\pwsh.exe'
-PYTHON = os.environ['LOCALAPPDATA'] + r'\Python\bin\python.exe'
 
 renderers = [
     {
@@ -94,6 +90,8 @@ if continuum:
         f'- {render_id}:\n'
         f'  - {start_time.strftime(dt_format)} - [{math.trunc(start_time.timestamp())}]  # {pc_name}\n'
         f'  - {datetime.fromtimestamp(finish_time).strftime(dt_format)} - [{math.trunc(finish_time)}]\n')
+    if (finish_time - start_time.timestamp()) < 600:
+        poser.DialogSimple.MessageBox('The finish time for this render seems to be inaccurate!')
 
     # copy the EXR file
     exr_to_be_denoised = os.path.join(
@@ -118,7 +116,7 @@ if continuum:
         archive_dir = os.path.join(album_path, 'Archive')
         if not os.path.isdir(archive_dir):
             os.mkdir(archive_dir)
-        command = [os.path.join(os.environ['PROGRAMFILES'], 'WinRAR', 'Rar.exe'), 'a',
+        command = [WINRAR, 'a',
                    os.path.join(archive_dir, export_name + '.rar'),
                    os.path.basename(scene_path)]
         pmd_path = scene_path.replace('.pz3', '.pmd')

@@ -4,6 +4,8 @@ import poser
 import shutil
 from typing import Set, Tuple
 
+from _config import DESKTOP
+
 
 def collect_pz3_required_paths(pz3_path: str, silent: bool = True) \
         -> Tuple[Set[str], bool]:
@@ -81,7 +83,7 @@ def copy_to(copy_to_path: str, required_paths: Set[str]):
             shutil.copy2(path, dest)
 
 
-def convert_size(size_bytes):
+def print_bytes(size_bytes) -> str:
     """https://stackoverflow.com/a/14822210/10728785"""
     if size_bytes == 0: return "0 B"
     size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
@@ -94,9 +96,7 @@ def convert_size(size_bytes):
 
 if __name__ == '__main__':
     dialogue = poser.DialogDirChooser(
-        0,
-        'Select a destination for the new Runtime...',
-        os.path.join(os.environ['USERPROFILE'] + '\\Desktop\\'))
+        0, 'Select a destination for the new Runtime...', DESKTOP)
     continuum = dialogue.Show()
 
     if continuum:
@@ -110,4 +110,4 @@ if __name__ == '__main__':
         for dir_path, dir_names, filenames in os.walk(os.path.join(copy_to_path, 'Runtime')):
             for filename in filenames:
                 total_size += os.path.getsize(os.path.join(dir_path, filename))
-        print('Total size of the Runtime:', convert_size(total_size))
+        print('Total size of the Runtime:', print_bytes(total_size))

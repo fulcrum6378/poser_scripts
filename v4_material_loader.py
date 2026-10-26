@@ -132,6 +132,7 @@ def inject_material(
         diffuse_texture = get_value_for_mat(shader['ColorTexture'], mat_name, chosen_mode, None)
         if diffuse_texture == 'null': diffuse_texture = None
 
+    if diffuse_texture is not None:
         if 'DiffuseMathArgument' in shader:
             diffuse_math_argument = get_value_for_mat(
                 shader['DiffuseMathArgument'], mat_name, chosen_mode, None)
@@ -676,7 +677,6 @@ def easy_color(any_str: Any) -> Tuple[float, float, float]:
 
 def find_absolute_path(relative_path: Optional[str]) -> Optional[str]:
     if relative_path is None: return None
-    abs_path = None
     for content in poser.Libraries():
         candidate = content + (':Runtime:Textures:' + relative_path).replace(':', os.path.sep)
         if os.path.isfile(candidate):

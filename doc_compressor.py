@@ -48,8 +48,7 @@ def choose_poser_docs(allowed_extensions: Iterable[str]) \
                         if os.path.isfile(pz_path):
                             pzs.append(pz_path)
         else:
-            print('The address is not available.')
-            quit()
+            poser.DialogSimple.MessageBox('The address is not available.')
     return request, pzs
 
 

@@ -380,6 +380,9 @@ actor BODY:1
     body = v4_sample.Actor('BODY')
     for morph_name, morph_values in morphs['BODY'].items():
         parm = body.Parameter(morph_name)
+        if parm is None:
+            poser.DialogSimple.MessageBox(f'Morph "{morph_name}" is not available.')
+            return
         print(f'		{"targetGeom" if parm.IsMorphTarget() else "valueParm"} {morph_name}', file=pz2)
         print('			{', file=pz2)
         tweak_parm(morph_values)

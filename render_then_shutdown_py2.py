@@ -1,8 +1,12 @@
 import os
 import poser
-from time import sleep
+from time import sleep, time
 
+begin = time()
 poser.Scene().Render()
-sleep(15)
-os.system("shutdown /s /t 0")
-poser.Quit(1)
+finish = time()
+
+if (finish - begin) > (60 * 5):
+    sleep(15)
+    os.system("shutdown /s /t 0")
+    poser.Quit(1)

@@ -522,8 +522,7 @@ actor abdomen:1
 
         end_actor()  # abdomen
 
-    if 'Chest' in dossier or len(hide_morphs['chest']) > 0 or len(morphs['chest']) > 0 or \
-            (not for_ds and figure_type == 'Victoria 4'):
+    if 'Chest' in dossier or len(hide_morphs['chest']) > 0 or len(morphs['chest']) > 0 or not for_ds:
 
         # begin chest
         print('''
@@ -533,8 +532,7 @@ actor chest:1
 		{
 		groups
 			{''', file=pz2)
-        if figure_type == 'Victoria 4':
-            print('''			groupNode Morphs | Shapes
+        print('''			groupNode Morphs | Shapes
 				{
 				collapsed 0
 				groupNode Morphs++
@@ -1277,9 +1275,8 @@ actor ''' + leg_side + '''Thigh:1
 
 def write_python_script_header(character_name: str) -> None:
     global py3
-    print(f"""import poser
-
-import v4_material_loader
+    print(f"""import importlib
+import poser
 
 # this script is executed twice
 scene = poser.Scene()
@@ -1291,8 +1288,20 @@ if figure.Name() != '{character_name.upper()}':
 def write_python_script_footer(dossier_path: str) -> None:
     global py3
     print(f"""    poser.ExecFile('../MAHDI/figure_remove_empty_daz_params_silent.py')
+    mahdi_scripts_dir = r'C:\\Users\\Mahdi\\OneDrive\\Runtime\\Python\\poserScripts\\MAHDI'
 
-    shaders = quick_yaml.load(open(r'{dossier_path}', 'r').read())['Shaders']
+    spec = importlib.util.spec_from_file_location(
+        'quick_yaml', mahdi_scripts_dir + r'\\quick_yaml.py')
+    quick_yaml = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(quick_yaml)
+
+    spec = importlib.util.spec_from_file_location(
+        'v4_material_loader', mahdi_scripts_dir + r'\\v4_material_loader.py')
+    v4_material_loader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v4_material_loader)
+
+    shaders = quick_yaml.load(open(
+        r'{dossier_path}', 'r').read())['Shaders']
     for mat in figure.Materials():
         v4_material_loader.inject_material(mat, shaders, None)
     scene.Draw()""", file=py3)

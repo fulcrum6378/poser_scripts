@@ -1,3 +1,4 @@
+import gzip
 import math
 import os
 import poser
@@ -18,7 +19,11 @@ def collect_pz3_required_paths(pz3_path: str, silent: bool = True) \
 
     all_available = True
 
-    pz3: str = open(pz3_path, 'r').read()
+    pz3: str
+    if not pz3_path.endswith('.pzz'):
+        pz3 = open(pz3_path, 'r').read()
+    else:
+        pz3 = gzip.open(pz3_path, 'rb').read().decode()
     references: Set[str] = set()
     seek = 0
     while True:

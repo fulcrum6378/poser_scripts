@@ -29,8 +29,8 @@ def collect_pz3_required_paths(pz3_path: str, silent: bool = True) \
     while True:
         try:
             # choose the earliest path
-            uc = pz3.find(':Runtime:', seek)
-            lc = pz3.find(':runtime:', seek)
+            uc = pz3.find('Runtime:', seek)
+            lc = pz3.find('runtime:', seek)
             if uc == -1 and lc == -1: break
             seek = uc if uc < lc or lc == -1 else lc
 
@@ -62,7 +62,7 @@ def collect_pz3_required_paths(pz3_path: str, silent: bool = True) \
 def find_file_in_runtime_paths(reference: str, required_paths: Set[str]) -> bool:
     path = None
     for content in poser.Libraries():
-        candidate = content + reference.replace(':', os.path.sep)
+        candidate = content + os.path.sep + reference.replace(':', os.path.sep)
         if os.path.isfile(candidate):
             path = candidate
             break

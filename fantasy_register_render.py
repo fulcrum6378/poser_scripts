@@ -14,15 +14,14 @@ renderers = [
         'ComputerName': 'Chimaera',
         'RenderCache': os.environ['USERPROFILE'] + '\\Videos',
         'PoserVersion': '14',
-        'ExrStorage': os.environ['USERPROFILE'] + '\\Videos\\Fantasy',
     },
     {
         'ComputerName': 'Nera',
         'RenderCache': '\\\\NERA\\Renders',
         'PoserVersion': '11',
-        'ExrStorage': os.environ['USERPROFILE'] + '\\Videos\\Fantasy',
     }
 ]
+EXR_STORAGE = os.environ['USERPROFILE'] + '\\Videos\\Fantasy'
 
 scene_path: str = poser.Scene().DocumentPath()
 album_path: str = os.path.dirname(scene_path)
@@ -55,7 +54,7 @@ if continuum:
 
 # determine the EXR storage directory
 if continuum:
-    if not os.path.isdir(renderers[renderer]['ExrStorage']):
+    if not os.path.isdir(EXR_STORAGE):
         continuum = poser.DialogSimple.YesNo('EXR storage unavailable. Continue?')
 
 # let the user choose a render from the render cache
@@ -94,11 +93,12 @@ if continuum:
         poser.DialogSimple.MessageBox('The finish time for this render seems to be inaccurate!')
 
     # copy the EXR file
-    exr_to_be_denoised = os.path.join(
-        renderers[renderer]['ExrStorage'],
-        choice + ' - ' + export_name + '.exr')
+    exr_to_be_denoised = os.path.join(EXR_STORAGE, choice + ' - ' + export_name + '.exr')
     if not os.path.isfile(exr_to_be_denoised):
         shutil.copy2(exr_path, exr_to_be_denoised)
+        if os.path.getmtime(exr_to_be_denoised) == finish_time and \
+                os.path.getsize(exr_to_be_denoised) == os.path.getsize(exr_path):
+            os.remove(exr_path)
 
     # let the EXR file be denoised
     if not os.path.isdir(os.path.join(DESKTOP, choice + ' - ' + export_name)):

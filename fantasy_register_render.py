@@ -98,7 +98,10 @@ if continuum:
         shutil.copy2(exr_path, exr_to_be_denoised)
         if os.path.getmtime(exr_to_be_denoised) == finish_time and \
                 os.path.getsize(exr_to_be_denoised) == os.path.getsize(exr_path):
-            os.remove(exr_path)
+            try:
+                os.remove(exr_path)
+            except PermissionError:
+                pass
 
     # let the EXR file be denoised
     if not os.path.isdir(os.path.join(DESKTOP, choice + ' - ' + export_name)):

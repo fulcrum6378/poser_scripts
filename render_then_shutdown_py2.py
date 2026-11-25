@@ -6,7 +6,7 @@ begin = time()
 poser.Scene().Render()
 finish = time()
 
-if (finish - begin) > (60 * 5):
+if (finish - begin) > (60 * 10):
     sleep(15)
     os.system("shutdown /s /t 0")
     poser.Quit(1)

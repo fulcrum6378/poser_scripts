@@ -14,11 +14,14 @@ renderers = [
         'ComputerName': 'Chimaera',
         'RenderCache': os.environ['USERPROFILE'] + '\\Videos',
         'PoserVersion': '14',
+        'IsRemote': False,
     },
     {
         'ComputerName': 'Nera',
         'RenderCache': '\\\\NERA\\Renders',
         'PoserVersion': '11',
+        'IsRemote': True,
+        'ScenesDir': '\\\\NERA\\Scenes',
     }
 ]
 EXR_STORAGE = os.environ['USERPROFILE'] + '\\Videos\\Fantasy'
@@ -49,7 +52,7 @@ if continuum:
         if poser.DialogSimple.YesNo('Is it rendered in this device?') == 1:
             renderer = 0
     if not os.path.isdir(renderers[renderer]['RenderCache']):
-        poser.DialogSimple.MessageBox('Nera is unavailable.')
+        poser.DialogSimple.MessageBox(renderers[renderer]['ComputerName'] + ' is unavailable.')
         continuum = False
 
 # determine the EXR storage directory
@@ -117,11 +120,12 @@ if continuum:
     # archive the scene
     if poser.DialogSimple.YesNo('Archive the scene?') == 1:
         archive_dir = os.path.join(album_path, 'Archive')
+        scene_name = os.path.basename(scene_path)
         if not os.path.isdir(archive_dir):
             os.mkdir(archive_dir)
         command = [WINRAR, 'a',
                    os.path.join(archive_dir, export_name + '.rar'),
-                   os.path.basename(scene_path)]
+                   scene_name]
         pmd_path = scene_path.replace('.pz3', '.pmd')
         if os.path.isfile(pmd_path):
             command.append(os.path.basename(pmd_path))
@@ -132,3 +136,8 @@ if continuum:
         if os.path.isfile(lod_path):
             command.append(os.path.basename(lod_path))
         subprocess.run(command, cwd=album_path)
+
+        if renderers[renderer]['IsRemote']:
+            remote_scene_path = os.path.join(renderers[renderer]['ScenesDir'], scene_name)
+            if os.path.isfile(remote_scene_path) and poser.DialogSimple.YesNo('Delete the remote scene?') == 1:
+                os.remove(remote_scene_path)
